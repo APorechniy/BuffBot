@@ -1,4 +1,4 @@
-# x3ui_api.py
+# x3ui_api.py (с отключенной проверкой SSL для локальных запросов)
 import aiohttp
 import json
 import config
@@ -16,7 +16,9 @@ class X3UiClient:
             "username": self.username,
             "password": self.password
         }
-        async with aiohttp.ClientSession() as session:
+        # Используем TCPConnector с отключенной проверкой SSL
+        connector = aiohttp.TCPConnector(ssl=False)
+        async with aiohttp.ClientSession(connector=connector) as session:
             async with session.post(url, data=payload) as r:
                 if r.status == 200:
                     self.cookies = {cookie.key: cookie.value for cookie in session.cookie_jar}
@@ -52,14 +54,15 @@ class X3UiClient:
             "settings": json.dumps(client_settings)
         }
 
-        async with aiohttp.ClientSession(cookies=self.cookies) as session:
+        connector = aiohttp.TCPConnector(ssl=False)
+        async with aiohttp.ClientSession(cookies=self.cookies, connector=connector) as session:
             async with session.post(url, json=payload) as r:
                 if r.status == 200:
                     res = await r.json()
                     return res.get("success", False)
                 if r.status in (401, 403, 302):
                     if await self.login():
-                        async with aiohttp.ClientSession(cookies=self.cookies) as retry_session:
+                        async with aiohttp.ClientSession(cookies=self.cookies, connector=connector) as retry_session:
                             async with retry_session.post(url, json=payload) as retry_r:
                                 if retry_r.status == 200:
                                     res = await retry_r.json()
@@ -95,14 +98,15 @@ class X3UiClient:
             "settings": json.dumps(client_settings)
         }
 
-        async with aiohttp.ClientSession(cookies=self.cookies) as session:
+        connector = aiohttp.TCPConnector(ssl=False)
+        async with aiohttp.ClientSession(cookies=self.cookies, connector=connector) as session:
             async with session.post(url, json=payload) as r:
                 if r.status == 200:
                     res = await r.json()
                     return res.get("success", False)
                 if r.status in (401, 403, 302):
                     if await self.login():
-                        async with aiohttp.ClientSession(cookies=self.cookies) as retry_session:
+                        async with aiohttp.ClientSession(cookies=self.cookies, connector=connector) as retry_session:
                             async with retry_session.post(url, json=payload) as retry_r:
                                 if retry_r.status == 200:
                                     res = await retry_r.json()
