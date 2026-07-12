@@ -17,56 +17,10 @@ if not logger.handlers:
 class X3UiClient:
     def __init__(self):
         self.base_url = config.XUI_URL.rstrip('/')
-        self.username = config.XUI_USER
-        self.password = config.XUI_PASS
         self.api_token = config.XUI_TOKEN
-        self.cookies = None
-
-    async def login(self) -> bool:
-        url = f"{self.base_url}/login"
-        payload = {
-            "username": self.username,
-            "password": self.password
-        }
-        headers = {
-            'Authorization': f'Bearer {self.api_token}',
-            'Content-Type': 'application/json'
-        }
-        
-        # Маскируем пароль перед записью в лог
-        safe_payload = payload.copy()
-        safe_payload["password"] = "***"
-        
-        logger.info(f"Попытка авторизации в 3X-UI. URL: {url}")
-        logger.debug(f"Параметры авторизации: {safe_payload}")
-
-        connector = aiohttp.TCPConnector(ssl=False)
-        try:
-            async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
-                async with session.post(url, data=payload) as r:
-                    logger.info(f"Ответ авторизации: HTTP статус {r.status}")
-                    response_text = await r.text()
-                    logger.debug(f"Сырой ответ авторизации: {response_text}")
-                    
-                    if r.status == 200:
-                        self.cookies = {cookie.key: cookie.value for cookie in session.cookie_jar}
-                        logger.info("Авторизация успешна. Сессионные куки сохранены.")
-                        return True
-                    else:
-                        logger.error(f"Панель отклонила авторизацию. Статус: {r.status}")
-                        return False
-        except Exception as e:
-            logger.exception(f"Критическая ошибка при попытке авторизации: {e}")
-            return False
 
     async def add_client(self, inbound_id: int, email: str, client_uuid: str, sub_id: str) -> bool:
         logger.info(f"Запрос на добавление клиента: email={email}, uuid={client_uuid}, sub_id={sub_id}")
-        
-        if not self.cookies:
-            logger.info("Сессионные куки отсутствуют. Запуск авторизации...")
-            if not await self.login():
-                logger.error("Не удалось выполнить автоматический вход. Отмена добавления клиента.")
-                return False
 
         url = f"{self.base_url}/panel/api/clients/add"
         total_bytes = config.TOTAL_GB_LIMIT * 1024 * 1024 * 1024 if config.TOTAL_GB_LIMIT > 0 else 0
@@ -84,7 +38,6 @@ class X3UiClient:
                 "subId": sub_id,
                 "flow": "xtls-rprx-vision"
             },
-            # Используем динамический inbound_id вместо жестко зашифрованного [1]
             "inboundIds": [inbound_id]
         }
 
@@ -98,7 +51,7 @@ class X3UiClient:
 
         connector = aiohttp.TCPConnector(ssl=False)
         try:
-            async with aiohttp.ClientSession(cookies=self.cookies, connector=connector, headers=headers) as session:
+            async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
                 async with session.post(url, json=payload) as r:
                     logger.info(f"Ответ добавления клиента: HTTP статус {r.status}")
                     response_text = await r.text()
@@ -117,19 +70,6 @@ class X3UiClient:
                     
                     if r.status in (401, 403, 302):
                         logger.warning(f"Ошибка сессии (HTTP {r.status}). Попытка повторной авторизации...")
-                        if await self.login():
-                            logger.info("Повторная авторизация успешна. Повторный запрос добавления клиента...")
-                            async with aiohttp.ClientSession(cookies=self.cookies, connector=connector) as retry_session:
-                                async with retry_session.post(url, json=payload) as retry_r:
-                                    logger.info(f"Повторный ответ добавления клиента: HTTP статус {retry_r.status}")
-                                    retry_text = await retry_r.text()
-                                    logger.debug(f"Сырой повторный ответ: {retry_text}")
-                                    if retry_r.status == 200:
-                                        try:
-                                            res = json.loads(retry_text)
-                                            return res.get("success", False)
-                                        except Exception:
-                                            return False
                     
                     logger.error(f"Не удалось добавить клиента. HTTP статус: {r.status}")
                     return False
@@ -139,12 +79,6 @@ class X3UiClient:
 
     async def update_client_status(self, inbound_id: int, client_uuid: str, email: str, sub_id: str, enable: bool) -> bool:
         logger.info(f"Запрос на изменение статуса клиента: email={email}, enable={enable}")
-        
-        if not self.cookies:
-            logger.info("Сессионные куки отсутствуют. Запуск авторизации...")
-            if not await self.login():
-                logger.error("Не удалось выполнить автоматический вход. Отмена обновления статуса.")
-                return False
 
         url = f"{self.base_url}/panel/api/inbounds/update/{email}"
         total_bytes = config.TOTAL_GB_LIMIT * 1024 * 1024 * 1024 if config.TOTAL_GB_LIMIT > 0 else 0
@@ -172,7 +106,7 @@ class X3UiClient:
 
         connector = aiohttp.TCPConnector(ssl=False)
         try:
-            async with aiohttp.ClientSession(cookies=self.cookies, connector=connector, headers=headers) as session:
+            async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
                 async with session.post(url, json=payload) as r:
                     logger.info(f"Ответ обновления статуса: HTTP статус {r.status}")
                     response_text = await r.text()
@@ -191,19 +125,6 @@ class X3UiClient:
                     
                     if r.status in (401, 403, 302):
                         logger.warning(f"Ошибка сессии (HTTP {r.status}). Попытка повторной авторизации...")
-                        if await self.login():
-                            logger.info("Повторная авторизация успешна. Повторный запрос обновления статуса...")
-                            async with aiohttp.ClientSession(cookies=self.cookies, connector=connector) as retry_session:
-                                async with retry_session.post(url, json=payload) as retry_r:
-                                    logger.info(f"Повторный ответ обновления статуса: HTTP статус {retry_r.status}")
-                                    retry_text = await retry_r.text()
-                                    logger.debug(f"Сырой повторный ответ: {retry_text}")
-                                    if retry_r.status == 200:
-                                        try:
-                                            res = json.loads(retry_text)
-                                            return res.get("success", False)
-                                        except Exception:
-                                            return False
                     
                     logger.error(f"Не удалось обновить статус клиента. HTTP статус: {r.status}")
                     return False
