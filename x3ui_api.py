@@ -8,17 +8,22 @@ class X3UiClient:
         self.base_url = config.XUI_URL
         self.username = config.XUI_USER
         self.password = config.XUI_PASS
+        self.api_token = config.XUI_TOKEN
         self.cookies = None
 
     async def login(self) -> bool:
-        url = f"{self.base_url}"
+        url = f"{self.base_url}/login"
         payload = {
             "username": self.username,
             "password": self.password
         }
+        headers = {
+            'Authorization': f'Bearer {self.api_token}',
+            'Content-Type': 'application/json'
+        }
         # Используем TCPConnector с отключенной проверкой SSL
         connector = aiohttp.TCPConnector(ssl=False)
-        async with aiohttp.ClientSession(connector=connector) as session:
+        async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
             async with session.post(url, data=payload) as r:
                 if r.status == 200:
                     self.cookies = {cookie.key: cookie.value for cookie in session.cookie_jar}
@@ -29,12 +34,11 @@ class X3UiClient:
         if not self.cookies and not await self.login():
             return False
 
-        url = f"{self.base_url}panel/api/inbounds/addClient"
+        url = f"{self.base_url}/panel/api/clients/add"
         total_bytes = config.TOTAL_GB_LIMIT * 1024 * 1024 * 1024 if config.TOTAL_GB_LIMIT > 0 else 0
         
-        client_settings = {
-            "clients": [
-                {
+        payload = {
+            "client": {
                     "id": client_uuid,
                     "alterId": 0,
                     "email": email,
@@ -45,17 +49,17 @@ class X3UiClient:
                     "tgId": "",
                     "subId": sub_id,
                     "flow": "xtls-rprx-vision"
-                }
-            ]
+                },
+            "inboundIds": [1]
         }
-        
-        payload = {
-            "id": inbound_id,
-            "settings": json.dumps(client_settings)
+
+        headers = {
+            'Authorization': f'Bearer {self.api_token}',
+            'Content-Type': 'application/json'
         }
 
         connector = aiohttp.TCPConnector(ssl=False)
-        async with aiohttp.ClientSession(cookies=self.cookies, connector=connector) as session:
+        async with aiohttp.ClientSession(cookies=self.cookies, connector=connector, headers=headers) as session:
             async with session.post(url, json=payload) as r:
                 if r.status == 200:
                     res = await r.json()
@@ -73,33 +77,29 @@ class X3UiClient:
         if not self.cookies and not await self.login():
             return False
 
-        url = f"{self.base_url}panel/api/inbounds/updateClient/{client_uuid}"
+        url = f"{self.base_url}/panel/api/inbounds/update/{email}"
         total_bytes = config.TOTAL_GB_LIMIT * 1024 * 1024 * 1024 if config.TOTAL_GB_LIMIT > 0 else 0
-        
-        client_settings = {
-            "clients": [
-                {
-                    "id": client_uuid,
-                    "alterId": 0,
-                    "email": email,
-                    "limitIp": config.LIMIT_IP,
-                    "totalGB": total_bytes,
-                    "expiryTime": 0,
-                    "enable": enable,
-                    "tgId": "",
-                    "subId": sub_id,
-                    "flow": "xtls-rprx-vision"
-                }
-            ]
-        }
-        
+
         payload = {
-            "id": inbound_id,
-            "settings": json.dumps(client_settings)
+            "id": client_uuid,
+            "alterId": 0,
+            "email": email,
+            "limitIp": config.LIMIT_IP,
+            "totalGB": total_bytes,
+            "expiryTime": 0,
+            "enable": enable,
+            "tgId": "",
+            "subId": sub_id,
+            "flow": "xtls-rprx-vision"
+        }
+
+        headers = {
+            'Authorization': f'Bearer {self.api_token}',
+            'Content-Type': 'application/json'
         }
 
         connector = aiohttp.TCPConnector(ssl=False)
-        async with aiohttp.ClientSession(cookies=self.cookies, connector=connector) as session:
+        async with aiohttp.ClientSession(cookies=self.cookies, connector=connector, headers=headers) as session:
             async with session.post(url, json=payload) as r:
                 if r.status == 200:
                     res = await r.json()
