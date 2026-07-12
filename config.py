@@ -20,8 +20,6 @@ WEB_PORT = int(os.getenv("WEB_PORT", 8000))
 
 # --- НАСТРОЙКИ 3X-UI ---
 XUI_URL = os.getenv("XUI_URL", "http://127.0.0.1:2053")
-XUI_USER = os.getenv("XUI_USER", "admin")
-XUI_PASS = os.getenv("XUI_PASS", "admin")
 XUI_TOKEN = os.getenv("XUI_TOKEN", "1234")
 XUI_INBOUND_ID = int(os.getenv("XUI_INBOUND_ID", 1))
 XUI_SUB_BASE_URL = os.getenv("XUI_SUB_BASE_URL", "http://127.0.0.1:2053")

@@ -53,6 +53,7 @@ async def grant_vpn_access(user_id: int) -> str:
     client_uuid = user['client_uuid'] if (user and user['client_uuid']) else str(uuid.uuid4())
     sub_id = user['sub_id'] if (user and user['sub_id']) else secrets.token_hex(8)
     client_email = f"tg_{user_id}"
+    tg_id = user_id
     
     xui = X3UiClient()
         
@@ -61,7 +62,8 @@ async def grant_vpn_access(user_id: int) -> str:
         inbound_id=config.XUI_INBOUND_ID,
         email=client_email,
         client_uuid=client_uuid,
-        sub_id=sub_id
+        sub_id=sub_id,
+        tg_id=tg_id
     )
     
     # 2. Если добавить не удалось (например, клиент с таким UUID уже есть или неверный Inbound ID)
@@ -72,6 +74,7 @@ async def grant_vpn_access(user_id: int) -> str:
             client_uuid=client_uuid,
             email=client_email,
             sub_id=sub_id,
+            tg_id=tg_id,
             enable=True
         )
         if not activated:
