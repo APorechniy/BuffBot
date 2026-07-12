@@ -55,15 +55,8 @@ async def grant_vpn_access(user_id: int) -> str:
     client_email = f"tg_{user_id}"
     
     xui = X3UiClient()
-    
-    # 1. Проверяем авторизацию в панели
-    if not await xui.login():
-        raise Exception(
-            "Не удалось авторизоваться в панели 3X-UI. "
-            "Проверьте правильность XUI_USER, XUI_PASS и XUI_URL в файле .env"
-        )
         
-    # 2. Пробуем добавить клиента в панель
+    # 1. Пробуем добавить клиента в панель
     success = await xui.add_client(
         inbound_id=config.XUI_INBOUND_ID,
         email=client_email,
@@ -71,7 +64,7 @@ async def grant_vpn_access(user_id: int) -> str:
         sub_id=sub_id
     )
     
-    # 3. Если добавить не удалось (например, клиент с таким UUID уже есть или неверный Inbound ID)
+    # 2. Если добавить не удалось (например, клиент с таким UUID уже есть или неверный Inbound ID)
     if not success:
         # Пробуем его просто включить/активировать
         activated = await xui.update_client_status(
@@ -89,7 +82,7 @@ async def grant_vpn_access(user_id: int) -> str:
                 f"2. Несовместимость протокола (если у вас НЕ VLESS XTLS-Vision, удалите flow в x3ui_api.py)."
             )
             
-    # 4. Только в случае успешного добавления в 3X-UI активируем подписку в БД бота!
+    # 3. Только в случае успешного добавления в 3X-UI активируем подписку в БД бота!
     new_expiry = await db.activate_user_subscription(user_id, client_uuid, sub_id, days=30)
     
     return f"{config.XUI_SUB_BASE_URL.rstrip('/')}/sub/{sub_id}"
