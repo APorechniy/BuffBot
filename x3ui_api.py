@@ -5,13 +5,13 @@ import config
 
 class X3UiClient:
     def __init__(self):
-        self.base_url = config.XUI_URL.rstrip('/')
+        self.base_url = config.XUI_URL
         self.username = config.XUI_USER
         self.password = config.XUI_PASS
         self.cookies = None
 
     async def login(self) -> bool:
-        url = f"{self.base_url}/login"
+        url = f"{self.base_url}"
         payload = {
             "username": self.username,
             "password": self.password
@@ -29,7 +29,7 @@ class X3UiClient:
         if not self.cookies and not await self.login():
             return False
 
-        url = f"{self.base_url}/panel/api/inbounds/addClient"
+        url = f"{self.base_url}panel/api/inbounds/addClient"
         total_bytes = config.TOTAL_GB_LIMIT * 1024 * 1024 * 1024 if config.TOTAL_GB_LIMIT > 0 else 0
         
         client_settings = {
@@ -73,7 +73,7 @@ class X3UiClient:
         if not self.cookies and not await self.login():
             return False
 
-        url = f"{self.base_url}/panel/api/inbounds/updateClient/{client_uuid}"
+        url = f"{self.base_url}panel/api/inbounds/updateClient/{client_uuid}"
         total_bytes = config.TOTAL_GB_LIMIT * 1024 * 1024 * 1024 if config.TOTAL_GB_LIMIT > 0 else 0
         
         client_settings = {
