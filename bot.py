@@ -54,11 +54,16 @@ async def grant_vpn_access(user_id: int) -> str:
     sub_id = user['sub_id'] if (user and user['sub_id']) else secrets.token_hex(8)
     client_email = f"tg_{user_id}"
     
-    # Продлеваем/активируем доступ на 30 дней бесплатно/платно в БД
-    new_expiry = await db.activate_user_subscription(user_id, client_uuid, sub_id, days=30)
-    
-    # Регистрируем в локальной панели 3X-UI
     xui = X3UiClient()
+    
+    # 1. Проверяем авторизацию в панели
+    if not await xui.login():
+        raise Exception(
+            "Не удалось авторизоваться в панели 3X-UI. "
+            "Проверьте правильность XUI_USER, XUI_PASS и XUI_URL в файле .env"
+        )
+        
+    # 2. Пробуем добавить клиента в панель
     success = await xui.add_client(
         inbound_id=config.XUI_INBOUND_ID,
         email=client_email,
@@ -66,18 +71,28 @@ async def grant_vpn_access(user_id: int) -> str:
         sub_id=sub_id
     )
     
-    # Если клиент уже был в панели, но был выключен — размораживаем его
+    # 3. Если добавить не удалось (например, клиент с таким UUID уже есть или неверный Inbound ID)
     if not success:
-        await xui.update_client_status(
+        # Пробуем его просто включить/активировать
+        activated = await xui.update_client_status(
             inbound_id=config.XUI_INBOUND_ID,
             client_uuid=client_uuid,
             email=client_email,
             sub_id=sub_id,
             enable=True
         )
-        
+        if not activated:
+            raise Exception(
+                f"Панель 3X-UI отклонила добавление и активацию клиента. "
+                f"Возможные причины:\n"
+                f"1. Не существует подключения с ID {config.XUI_INBOUND_ID}.\n"
+                f"2. Несовместимость протокола (если у вас НЕ VLESS XTLS-Vision, удалите flow в x3ui_api.py)."
+            )
+            
+    # 4. Только в случае успешного добавления в 3X-UI активируем подписку в БД бота!
+    new_expiry = await db.activate_user_subscription(user_id, client_uuid, sub_id, days=30)
+    
     return f"{config.XUI_SUB_BASE_URL.rstrip('/')}/sub/{sub_id}"
-
 # --- Обработчики команд ---
 
 @dp.message(Command("start"))
