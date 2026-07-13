@@ -88,7 +88,7 @@ async def grant_vpn_access(user_id: int) -> str:
     # 3. Только в случае успешного добавления в 3X-UI активируем подписку в БД бота!
     new_expiry = await db.activate_user_subscription(user_id, client_uuid, sub_id, days=30)
     
-    return f"{config.XUI_SUB_BASE_URL.rstrip('/')}/sub/{sub_id}"
+    return f"{config.XUI_SUB_BASE_URL.rstrip('/')}/buff-subscribe/{sub_id}"
 # --- Обработчики команд ---
 
 @dp.message(Command("start"))
@@ -105,7 +105,7 @@ async def cmd_start(message: types.Message):
     
     if status == 'active' and expires_at:
         expiry_dt = datetime.fromisoformat(expires_at)
-        sub_link = f"{config.XUI_SUB_BASE_URL.rstrip('/')}/sub/{sub_id}"
+        sub_link = f"{config.XUI_SUB_BASE_URL.rstrip('/')}/buff-subscribe/{sub_id}"
         text += (
             f"✅ Ваш доступ активен!\n"
             f"📅 Действует до: {expiry_dt.strftime('%d.%m.%Y %H:%M')}\n\n"
