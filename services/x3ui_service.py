@@ -19,7 +19,7 @@ class X3UiClient:
         self.base_url = config.XUI_URL.rstrip('/')
         self.api_token = config.XUI_TOKEN
 
-    async def add_client(self, inbound_id: int, email: str, client_uuid: str, sub_id: str, tg_id: int) -> bool:
+    async def add_client(self, inbound_id: int, email: str, client_uuid: str, sub_id: str, tg_id: int, expiry_time_ms: int = 0) -> bool:
         logger.info(f"Запрос на добавление клиента: email={email}, uuid={client_uuid}, sub_id={sub_id}")
 
         url = f"{self.base_url}/panel/api/clients/add"
@@ -32,7 +32,7 @@ class X3UiClient:
                 "email": email,
                 "limitIp": config.LIMIT_IP,
                 "totalGB": total_bytes,
-                "expiryTime": 0,
+                "expiryTime": expiry_time_ms,
                 "enable": True,
                 "tgId": tg_id,
                 "subId": sub_id,
@@ -77,7 +77,7 @@ class X3UiClient:
             logger.exception(f"Критическая ошибка при добавлении клиента: {e}")
             return False
 
-    async def update_client_status(self, inbound_id: int, client_uuid: str, email: str, sub_id: str, enable: bool, tg_id) -> bool:
+    async def update_client_status(self, inbound_id: int, client_uuid: str, email: str, sub_id: str, enable: bool, tg_id, expiry_time_ms: int = 0) -> bool:
         logger.info(f"Запрос на изменение статуса клиента: email={email}, enable={enable}")
 
         url = f"{self.base_url}/panel/api/inbounds/update/{email}"
@@ -89,7 +89,7 @@ class X3UiClient:
             "email": email,
             "limitIp": config.LIMIT_IP,
             "totalGB": total_bytes,
-            "expiryTime": 0,
+            "expiryTime": expiry_time_ms,
             "enable": enable,
             "tgId": tg_id,
             "subId": sub_id,
