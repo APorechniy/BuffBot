@@ -6,6 +6,7 @@ import logging
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Принудительно добавляем текущую директорию в PYTHONPATH для корректных импортов в Docker
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -30,13 +31,85 @@ logger = logging.getLogger("main")
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
 
+@dp.callback_query(lambda c: c.data == "cancel_support")
+async def process_cancel_support(callback_query: types.CallbackQuery, state: FSMContext):
+    await state.clear() # Сбрасываем состояние FSM
+    await callback_query.answer("Отправка обращения отменена.")
+    # Возвращаем пользователя в главное меню
+    await commands.cmd_start(callback_query.message)
+
+# Хэндлер приема текста обращения
+@dp.message(SupportStates.waiting_for_ticket)
+async def handle_support_message(message: types.Message, state: FSMContext):
+    # Сразу сбрасываем состояние, чтобы пользователь мог дальше пользоваться командами
+    await state.clear()
+    
+    user_id = message.from_user.id
+    username = f"@{message.from_user.username}" if message.from_user.username else "Нет юзернейма"
+    full_name = message.from_user.full_name
+    ticket_text = message.text
+    
+    # Формируем красивое сообщение для вашей закрытой группы администраторов
+    admin_message = (
+        "🎫 **Новое обращение в техподдержку!**\n\n"
+        f"👤 **Отправитель:** {full_name}\n"
+        f"🆔 **ID:** `{user_id}`\n"
+        f"🗣️ **Логин:** {username}\n\n"
+        f"💬 **Текст обращения:**\n_\"{ticket_text}\"_"
+    )
+    
+    # Отправляем сообщение в чат поддержки
+    try:
+        if settings.SUPPORT_CHAT_ID == 0:
+            raise Exception("Не настроен SUPPORT_CHAT_ID в файле .env")
+            
+        await bot.send_message(settings.SUPPORT_CHAT_ID, admin_message, parse_mode="Markdown")
+        
+        # Подтверждение пользователю
+        keyboard = [[InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_menu")]]
+        await message.answer(
+            "✅ **Ваше обращение успешно зарегистрировано!**\n\n"
+            "Инженеры поддержки уже изучают вашу проблему. Мы свяжемся с вами в ближайшее время прямо здесь, в чате бота.\n"
+            "Спасибо!",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Не удалось перенаправить обращение в чат поддержки: {e}")
+        keyboard = [[InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_menu")]]
+        await message.answer(
+            "❌ **Произошла техническая ошибка при отправке.**\n\n"
+            "К сожалению, сейчас мы не смогли доставить ваше сообщение. Пожалуйста, напишите ваше обращение "
+            "напрямую на наш почтовый ящик `beunaffected@mail.ru`.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+            parse_mode="Markdown"
+        )
+async def process_start_support(callback_query: types.CallbackQuery, state: FSMContext):
+    """Инициализирует процесс отправки тикета, переключая FSM."""
+    await callback_query.answer()
+    
+    # Включаем состояние ожидания ввода сообщения
+    await state.set_state(SupportStates.waiting_for_ticket)
+    
+    text = (
+        "💬 **Служба технической поддержки**\n\n"
+        "Вы можете оставить обращение прямо здесь. Напишите текст вашей проблемы в одном сообщении "
+        "и отправьте его в этот чат — бот автоматически передаст его дежурным инженерам.\n\n"
+        "Также вы можете отправить подробное письмо на наш EMail: `beunaffected@mail.ru` "
+        "с обязательным указанием вашего логина (Username) в Telegram.\n\n"
+        "✍️ **Отправьте ваше сообщение прямо сейчас (или нажмите 'Отмена'):**"
+    )
+    keyboard = [[InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_support")]]
+    await callback_query.message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="Markdown")
+
+
 # --- Регистрация хэндлеров Telegram ---
 dp.message.register(commands.cmd_start, Command("start"))
 dp.callback_query.register(callbacks.process_upgrade_menu, lambda c: c.data == "upgrade_menu")
 dp.callback_query.register(callbacks.process_buy_tariff, lambda c: c.data.startswith("buy:"))
 dp.callback_query.register(callbacks.process_activate_trial_callback, lambda c: c.data == "activate_trial")
 dp.callback_query.register(callbacks.process_show_docs, lambda c: c.data == "show_docs")
-dp.callback_query.register(callbacks.process_start_support, lambda c: c.data == "start_support_ticket")
+dp.callback_query.register(process_start_support, lambda c: c.data == "start_support_ticket")
 dp.callback_query.register(commands.cmd_start, lambda c: c.data == "back_to_menu") # Назад в меню
 
 
