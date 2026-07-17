@@ -16,7 +16,7 @@ async def cmd_start(message: types.Message):
     sub_id = user['sub_id']
     trial_used = user['trial_used']
     
-    text = "🛡️ **Главное меню Квандо VPN**\n\n"
+    text = "🛡️ **Главное меню Buff VPN**\n\n"
     keyboard = []
     
     if status == 'active' and expires_at:
@@ -37,9 +37,10 @@ async def cmd_start(message: types.Message):
         
         keyboard.append([InlineKeyboardButton(text="💳 Оформить подписку", callback_data="upgrade_menu")])
         
+    keyboard.append([InlineKeyboardButton(text="📖 Документация по проекту", callback_data="show_docs")])
     keyboard.append([
         InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq"),
-        InlineKeyboardButton(text="💬 Поддержка", callback_data="show_support")
+        InlineKeyboardButton(text="💬 Техподдержка", callback_data="start_support_ticket")
     ])
     
     await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="Markdown")

@@ -2,7 +2,6 @@
 import os
 import aiosqlite
 from datetime import datetime, timedelta
-from config import settings
 
 DB_NAME = os.getenv("DB_PATH", "data/database.db")
 

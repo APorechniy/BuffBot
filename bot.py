@@ -17,6 +17,12 @@ import handlers.commands as commands
 import handlers.callbacks as callbacks
 import utils.helpers as helpers
 
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
+
+class SupportStates(StatesGroup):
+    waiting_for_ticket = State()
+
 # Инициализация логирования
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s')
 logger = logging.getLogger("main")
@@ -29,7 +35,10 @@ dp.message.register(commands.cmd_start, Command("start"))
 dp.callback_query.register(callbacks.process_upgrade_menu, lambda c: c.data == "upgrade_menu")
 dp.callback_query.register(callbacks.process_buy_tariff, lambda c: c.data.startswith("buy:"))
 dp.callback_query.register(callbacks.process_activate_trial_callback, lambda c: c.data == "activate_trial")
+dp.callback_query.register(callbacks.process_show_docs, lambda c: c.data == "show_docs")
+dp.callback_query.register(callbacks.process_start_support, lambda c: c.data == "start_support_ticket")
 dp.callback_query.register(commands.cmd_start, lambda c: c.data == "back_to_menu") # Назад в меню
+
 
 # --- API эндпоинты для интеграции с вашим сайтом ---
 async def handle_website_trial_api(request):
