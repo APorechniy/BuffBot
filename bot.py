@@ -3,6 +3,7 @@ import sys
 import os
 import asyncio
 import logging
+import html 
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -32,6 +33,7 @@ bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
 
 async def back_to_menu(callback_query: types.CallbackQuery):
+    await callback_query.answer()
     # Возвращаем пользователя в главное меню
     await commands.cmd_start(callback_query.message)
 
@@ -50,16 +52,19 @@ async def handle_support_message(message: types.Message, state: FSMContext):
     
     user_id = message.from_user.id
     username = f"@{message.from_user.username}" if message.from_user.username else "Нет юзернейма"
-    full_name = message.from_user.full_name
-    ticket_text = message.text
     
-    # Формируем красивое сообщение для вашей закрытой группы администраторов
+    # Экранируем все данные, пришедшие от пользователя, защищая разметку от падений
+    full_name_safe = html.escape(message.from_user.full_name)
+    username_safe = html.escape(username)
+    ticket_text_safe = html.escape(message.text)
+    
+    # Формируем сообщение для админов, используя безопасные HTML-теги вместо Markdown
     admin_message = (
-        "🎫 **Новое обращение в техподдержку!**\n\n"
-        f"👤 **Отправитель:** {full_name}\n"
-        f"🆔 **ID:** `{user_id}`\n"
-        f"🗣️ **Логин:** {username}\n\n"
-        f"💬 **Текст обращения:**\n_\"{ticket_text}\"_"
+        "🎫 <b>Новое обращение в техподдержку!</b>\n\n"
+        f"👤 <b>Отправитель:</b> {full_name_safe}\n"
+        f"🆔 <b>ID:</b> <code>{user_id}</code>\n"
+        f"🗣️ <b>Логин:</b> {username_safe}\n\n"
+        f"💬 <b>Текст обращения:</b>\n{ticket_text_safe}"
     )
     
     # Отправляем сообщение в чат поддержки
@@ -67,26 +72,26 @@ async def handle_support_message(message: types.Message, state: FSMContext):
         if settings.SUPPORT_CHAT_ID == 0:
             raise Exception("Не настроен SUPPORT_CHAT_ID в файле .env")
             
-        await bot.send_message(settings.SUPPORT_CHAT_ID, admin_message, parse_mode="Markdown")
+        await bot.send_message(settings.SUPPORT_CHAT_ID, admin_message, parse_mode="HTML")
         
         # Подтверждение пользователю
         keyboard = [[InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_menu")]]
         await message.answer(
-            "✅ **Ваше обращение успешно зарегистрировано!**\n\n"
+            "✅ <b>Ваше обращение успешно зарегистрировано!</b>\n\n"
             "Инженеры поддержки уже изучают вашу проблему. Мы свяжемся с вами в ближайшее время прямо здесь, в чате бота.\n"
             "Спасибо!",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
     except Exception as e:
         logger.error(f"Не удалось перенаправить обращение в чат поддержки: {e}")
         keyboard = [[InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_menu")]]
         await message.answer(
-            "❌ **Произошла техническая ошибка при отправке.**\n\n"
+            "❌ <b>Произошла техническая ошибка при отправке.</b>\n\n"
             "К сожалению, сейчас мы не смогли доставить ваше сообщение. Пожалуйста, напишите ваше обращение "
-            "напрямую на наш почтовый ящик `beunaffected@mail.ru`.",
+            "напрямую на наш почтовый ящик <code>beunaffected@mail.ru</code>.",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
 async def process_start_support(callback_query: types.CallbackQuery, state: FSMContext):
     """Инициализирует процесс отправки тикета, переключая FSM."""
