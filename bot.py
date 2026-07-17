@@ -31,6 +31,10 @@ logger = logging.getLogger("main")
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
 
+async def back_to_menu(callback_query: types.CallbackQuery):
+    # Возвращаем пользователя в главное меню
+    await commands.cmd_start(callback_query.message)
+
 @dp.callback_query(lambda c: c.data == "cancel_support")
 async def process_cancel_support(callback_query: types.CallbackQuery, state: FSMContext):
     await state.clear() # Сбрасываем состояние FSM
@@ -109,8 +113,9 @@ dp.callback_query.register(callbacks.process_upgrade_menu, lambda c: c.data == "
 dp.callback_query.register(callbacks.process_buy_tariff, lambda c: c.data.startswith("buy:"))
 dp.callback_query.register(callbacks.process_activate_trial_callback, lambda c: c.data == "activate_trial")
 dp.callback_query.register(callbacks.process_show_docs, lambda c: c.data == "show_docs")
+dp.callback_query.register(callbacks.process_show_docs, lambda c: c.data == "show_faq")
 dp.callback_query.register(process_start_support, lambda c: c.data == "start_support_ticket")
-dp.callback_query.register(commands.cmd_start, lambda c: c.data == "back_to_menu") # Назад в меню
+dp.callback_query.register(back_to_menu, lambda c: c.data == "back_to_menu") # Назад в меню
 
 
 # --- API эндпоинты для интеграции с вашим сайтом ---
