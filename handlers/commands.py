@@ -21,7 +21,7 @@ async def cmd_start(message: types.Message):
     
     if status == 'active' and expires_at:
         expiry_dt = datetime.fromisoformat(expires_at)
-        sub_link = f"{settings.XUI_SUB_BASE_URL.rstrip('/')}/sub/{sub_id}"
+        sub_link = f"{settings.XUI_SUB_BASE_URL.rstrip('/')}/buff-subscribe/{sub_id}"
         text += (
             f"✅ **Статус:** Активен\n"
             f"📅 **Истекает:** {expiry_dt.strftime('%d.%m.%Y %H:%M')}\n\n"

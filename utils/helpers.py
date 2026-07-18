@@ -59,7 +59,7 @@ async def grant_vpn_access(user_id: int, days: int) -> str:
             
     # 4. Фиксируем в локальной БД
     await db.activate_user_subscription(user_id, client_uuid, sub_id, days=days)
-    return f"{settings.XUI_SUB_BASE_URL.rstrip('/')}/sub/{sub_id}"
+    return f"{settings.XUI_SUB_BASE_URL.rstrip('/')}/buff-subscribe/{sub_id}"
 
 async def activate_trial_period(user_id: int, bot: Bot) -> tuple[bool, str]:
     """Логика активации 1-дневного триала по запросу с сайта или бота."""
@@ -104,7 +104,7 @@ async def activate_trial_period(user_id: int, bot: Bot) -> tuple[bool, str]:
     await db.use_trial_db(user_id, client_uuid, sub_id, expiry_dt.isoformat())
     
     # Отправляем сообщение пользователю в TG
-    sub_link = f"{settings.XUI_SUB_BASE_URL.rstrip('/')}/sub/{sub_id}"
+    sub_link = f"{settings.XUI_SUB_BASE_URL.rstrip('/')}/buff-subscribe/{sub_id}"
     try:
         await bot.send_message(
             user_id,
