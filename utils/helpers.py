@@ -39,6 +39,7 @@ async def grant_vpn_access(user_id: int, days: int) -> str:
         email=client_email,
         client_uuid=client_uuid,
         sub_id=sub_id,
+        tg_id=user_id,
         expiry_time_ms=expiry_ms
     )
     
