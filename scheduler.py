@@ -38,7 +38,8 @@ async def check_subscriptions_job(bot: Bot):
                 client_uuid=client_uuid,
                 email=f"tg_{user_id}",
                 sub_id=sub_id,
-                enable=False
+                enable=False,
+                tg_id=user_id,
             )
             
             if success:

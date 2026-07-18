@@ -51,6 +51,7 @@ async def grant_vpn_access(user_id: int, days: int) -> str:
             email=client_email,
             sub_id=sub_id,
             enable=True,
+            tg_id=user_id,
             expiry_time_ms=expiry_ms
         )
         if not activated:
@@ -82,6 +83,7 @@ async def activate_trial_period(user_id: int, bot: Bot) -> tuple[bool, str]:
         email=client_email,
         client_uuid=client_uuid,
         sub_id=sub_id,
+        tg_id=user_id,
         expiry_time_ms=expiry_ms
     )
     
@@ -92,6 +94,7 @@ async def activate_trial_period(user_id: int, bot: Bot) -> tuple[bool, str]:
             email=client_email,
             sub_id=sub_id,
             enable=True,
+            tg_id=user_id,
             expiry_time_ms=expiry_ms
         )
         if not activated:

@@ -77,7 +77,7 @@ class X3UiClient:
             logger.exception(f"Критическая ошибка при добавлении клиента: {e}")
             return False
 
-    async def update_client_status(self, inbound_id: int, client_uuid: str, email: str, sub_id: str, enable: bool, tg_id, expiry_time_ms: int = 0) -> bool:
+    async def update_client_status(self, inbound_id: int, client_uuid: str, email: str, sub_id: str, enable: bool, tg_id: int, expiry_time_ms: int = 0) -> bool:
         logger.info(f"Запрос на изменение статуса клиента: email={email}, enable={enable}")
 
         url = f"{self.base_url}/panel/api/clients/update/{email}"
