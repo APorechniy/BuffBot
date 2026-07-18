@@ -1,7 +1,7 @@
 import aiohttp
 import json
 import logging
-import config
+from config import settings
 
 # Настраиваем именованный логгер
 logger = logging.getLogger("x3ui_api")
@@ -16,23 +16,23 @@ if not logger.handlers:
 
 class X3UiClient:
     def __init__(self):
-        self.base_url = config.XUI_URL.rstrip('/')
-        self.api_token = config.XUI_TOKEN
+        self.base_url = settings.XUI_URL.rstrip('/')
+        self.api_token = settings.XUI_TOKEN
 
-    async def add_client(self, inbound_id: int, email: str, client_uuid: str, sub_id: str, tg_id: int) -> bool:
+    async def add_client(self, inbound_id: int, email: str, client_uuid: str, sub_id: str, tg_id: int, expiry_time_ms: int = 0) -> bool:
         logger.info(f"Запрос на добавление клиента: email={email}, uuid={client_uuid}, sub_id={sub_id}")
 
         url = f"{self.base_url}/panel/api/clients/add"
-        total_bytes = config.TOTAL_GB_LIMIT * 1024 * 1024 * 1024 if config.TOTAL_GB_LIMIT > 0 else 0
+        total_bytes = settings.TOTAL_GB_LIMIT * 1024 * 1024 * 1024 if settings.TOTAL_GB_LIMIT > 0 else 0
         
         payload = {
             "client": {
                 "id": client_uuid,
                 "alterId": 0,
                 "email": email,
-                "limitIp": config.LIMIT_IP,
+                "limitIp": settings.LIMIT_IP,
                 "totalGB": total_bytes,
-                "expiryTime": 0,
+                "expiryTime": expiry_time_ms,
                 "enable": True,
                 "tgId": tg_id,
                 "subId": sub_id,
@@ -77,19 +77,19 @@ class X3UiClient:
             logger.exception(f"Критическая ошибка при добавлении клиента: {e}")
             return False
 
-    async def update_client_status(self, inbound_id: int, client_uuid: str, email: str, sub_id: str, enable: bool, tg_id) -> bool:
+    async def update_client_status(self, inbound_id: int, client_uuid: str, email: str, sub_id: str, enable: bool, tg_id: int, expiry_time_ms: int = 0) -> bool:
         logger.info(f"Запрос на изменение статуса клиента: email={email}, enable={enable}")
 
-        url = f"{self.base_url}/panel/api/inbounds/update/{email}"
-        total_bytes = config.TOTAL_GB_LIMIT * 1024 * 1024 * 1024 if config.TOTAL_GB_LIMIT > 0 else 0
+        url = f"{self.base_url}/panel/api/clients/update/{email}"
+        total_bytes = settings.TOTAL_GB_LIMIT * 1024 * 1024 * 1024 if settings.TOTAL_GB_LIMIT > 0 else 0
 
         payload = {
             "id": client_uuid,
             "alterId": 0,
             "email": email,
-            "limitIp": config.LIMIT_IP,
+            "limitIp": settings.LIMIT_IP,
             "totalGB": total_bytes,
-            "expiryTime": 0,
+            "expiryTime": expiry_time_ms,
             "enable": enable,
             "tgId": tg_id,
             "subId": sub_id,

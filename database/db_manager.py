@@ -1,9 +1,9 @@
-# db.py
+# Асинхронная работа с SQLite
 import os
 import aiosqlite
 from datetime import datetime, timedelta
 
-DB_NAME = os.getenv("DB_PATH", "database.db")
+DB_NAME = os.getenv("DB_PATH", "data/database.db")
 
 async def init_db():
     db_dir = os.path.dirname(DB_NAME)
@@ -17,7 +17,8 @@ async def init_db():
                 client_uuid TEXT UNIQUE,
                 sub_id TEXT UNIQUE,
                 status TEXT DEFAULT 'new',
-                expires_at TEXT
+                expires_at TEXT,
+                trial_used INTEGER DEFAULT 0
             )
         """)
         await db.execute("""
@@ -66,7 +67,7 @@ async def mark_payment_success(order_id: str):
         await conn.execute("UPDATE payments SET status = 'success' WHERE order_id = ?", (order_id,))
         await conn.commit()
 
-async def activate_user_subscription(user_id: int, client_uuid: str, sub_id: str, days: int = 30):
+async def activate_user_subscription(user_id: int, client_uuid: str, sub_id: str, days: int):
     async with aiosqlite.connect(DB_NAME) as conn:
         user = await get_user(user_id)
         current_expiry = None
@@ -87,6 +88,17 @@ async def activate_user_subscription(user_id: int, client_uuid: str, sub_id: str
         )
         await conn.commit()
         return new_expiry
+
+async def use_trial_db(user_id: int, client_uuid: str, sub_id: str, expires_at_str: str):
+    """Фиксирует использование триала в локальной БД."""
+    async with aiosqlite.connect(DB_NAME) as conn:
+        await conn.execute(
+            """UPDATE users 
+               SET client_uuid = ?, sub_id = ?, status = 'active', expires_at = ?, trial_used = 1 
+               WHERE user_id = ?""",
+            (client_uuid, sub_id, expires_at_str, user_id)
+        )
+        await conn.commit()
 
 async def update_user_status(user_id: int, status: str):
     async with aiosqlite.connect(DB_NAME) as conn:

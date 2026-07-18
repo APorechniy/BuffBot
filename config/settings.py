@@ -1,17 +1,18 @@
-# config.py
+# Все настройки и FeatureToggle
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+SUPPORT_CHAT_ID = int(os.getenv("SUPPORT_CHAT_ID", 0))
 
-# --- FEATURE TOGGLE ---
-# True - платный доступ через платежный шлюз. False - бесплатный автоматический доступ.
+# FEATURE TOGGLE
 PAYMENT_ENABLED = os.getenv("PAYMENT_ENABLED", "False").lower() in ("true", "1", "yes")
 
-# Стоимость подписки в рублях (используется, если PAYMENT_ENABLED=True)
-SUB_PRICE = float(os.getenv("SUB_PRICE", 500.00))
+# Тарифная сетка
+PRICE_30_DAYS = float(os.getenv("PRICE_30_DAYS", 300.00))
+PRICE_90_DAYS = float(os.getenv("PRICE_90_DAYS", 800.00))
 
 # --- ПАРАМЕТРЫ ПЛАТЕЖЕЙ (заполняются при PAYMENT_ENABLED=True) ---
 PAYMENT_GATEWAY_CLASS = os.getenv("PAYMENT_GATEWAY_CLASS", "") # Имя класса шлюза (например, "aaio")
