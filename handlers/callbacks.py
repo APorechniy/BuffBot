@@ -11,10 +11,8 @@ from aiogram.fsm.context import FSMContext
 async def process_show_docs(callback_query: types.CallbackQuery):
     """Открывает краткую документацию и развилку выбора ОС."""
     text = (
-        "📖 **Документация по проекту Buff VPN**\n\n"
-        "Наш VPN работает на базе протокола **VLESS-Reality** — это один из самых быстрых и скрытных "
-        "протоколов шифрования на сегодняшний день. Он полностью маскирует трафик под обычное посещение зарубежных сайтов.\n\n"
-        "Для начала работы выберите операционную систему вашего устройства, чтобы получить пошаговую инструкцию и ссылки на приложения:"
+        "📖 **Документация и Настройка Buff VPN**\n\n"
+        "Выберите вашу операционную систему для получения подробной инструкции:"
     )
     keyboard = [
         [InlineKeyboardButton(text="🍏 iOS (iPhone / iPad)", callback_data="inst_ios")],
@@ -24,13 +22,46 @@ async def process_show_docs(callback_query: types.CallbackQuery):
     ]
     await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="Markdown")
 
+async def process_instruction_detail(callback_query: types.CallbackQuery):
+    os_type = callback_query.data.split("_")[1]
+    
+    instructions = {
+        "ios": (
+            "🍏 **Инструкция для iOS (iPhone/iPad):**\n\n"
+            "1. Скачайте приложение **V2Rage** или **Streisand** (или доступный аналог) из App Store.\n"
+            "2. Скопируйте вашу ссылку подписки из главного меню бота.\n"
+            "3. Откройте приложение, нажмите **'+'** -> **'Add Subscription'** (или Импорт из буфера).\n"
+            "4. Вставьте ссылку и нажмите 'Connect'."
+        ),
+        "android": (
+            "🤖 **Инструкция для Android:**\n\n"
+            "1. Установите приложение **Happ** или **V2BOX** (или доступный аналог) из Google Play.\n"
+            "2. Скопируйте ссылку подписки в боте.\n"
+            "3. В приложении перейдите в раздел **Subscriptions** -> Нажмите **'+'** и вставьте ссылку.\n"
+            "4. Обновите список и подключитесь."
+        ),
+        "windows": (
+            "💻 **Инструкция для Windows:**\n\n"
+            "1. Скачайте клиент **Hiddify** с официального GitHub/сайта.\n"
+            "2. Скопируйте ссылку подписки в боте.\n"
+            "3. Нажмите кнопку **'New Profile'** -> **'Add from clipboard'** (Добавить из буфера).\n"
+            "4. Нажмите большую кнопку подключения."
+        )
+    }
+    
+    keyboard = [[InlineKeyboardButton(text="🔙 Назад к выбору ОС", callback_data="show_docs")]]
+    await callback_query.message.edit_text(
+        instructions.get(os_type, "Инструкция временно недоступна."),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+        parse_mode="Markdown"
+    )
+
 async def process_upgrade_menu(callback_query: types.CallbackQuery):
     """Показывает тарифную сетку для покупки/продления."""
     text = (
         "💎 **Выберите тарифный план для активации/продления:**\n\n"
         f"• **1 месяц (30 дней)** — {settings.PRICE_30_DAYS} руб.\n"
         f"• **3 месяца (90 дней)** — {settings.PRICE_90_DAYS} руб.\n\n"
-        "После выбора вы будете перенаправлены на страницу оплаты."
     )
     keyboard = [
         [

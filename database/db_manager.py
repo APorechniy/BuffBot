@@ -5,12 +5,20 @@ from datetime import datetime, timedelta
 
 DB_NAME = os.getenv("DB_PATH", "data/database.db")
 
+async def get_db_connection():
+    """Создает подключение к БД с включенным WAL-режимом и таймаутом."""
+    conn = await aiosqlite.connect(DB_NAME, timeout=15.0)
+    conn.row_factory = aiosqlite.Row
+    await conn.execute("PRAGMA journal_mode=WAL;")
+    await conn.execute("PRAGMA busy_timeout=5000;")
+    return conn
+
 async def init_db():
     db_dir = os.path.dirname(DB_NAME)
     if db_dir and not os.path.exists(db_dir):
         os.makedirs(db_dir, exist_ok=True)
 
-    async with aiosqlite.connect(DB_NAME) as db:
+    async with await get_db_connection() as db:
         await db.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
@@ -78,7 +86,7 @@ async def activate_user_subscription(user_id: int, client_uuid: str, sub_id: str
                 pass
         
         base_time = current_expiry if (current_expiry and current_expiry > datetime.now()) else datetime.now()
-        new_expiry = (base_time + timedelta(days=days)).isoformat()
+        new_expiry = (base_time + timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
         
         await conn.execute(
             """UPDATE users 
