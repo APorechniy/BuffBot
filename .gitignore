@@ -1,5 +1,8 @@
 # .env
 .env*
 
+# DB
+/data/
+
 # MD
 instruction.md
