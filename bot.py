@@ -119,6 +119,7 @@ dp.callback_query.register(callbacks.process_buy_tariff, lambda c: c.data.starts
 dp.callback_query.register(callbacks.process_activate_trial_callback, lambda c: c.data == "activate_trial")
 dp.callback_query.register(callbacks.process_show_docs, lambda c: c.data == "show_docs")
 dp.callback_query.register(callbacks.process_show_docs, lambda c: c.data == "show_faq")
+dp.callback_query.register(callbacks.process_show_inst, lambda c: c.data.startswith("inst_"))
 dp.callback_query.register(process_start_support, lambda c: c.data == "start_support_ticket")
 dp.callback_query.register(back_to_menu, lambda c: c.data == "back_to_menu") # Назад в меню
 

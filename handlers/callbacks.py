@@ -8,13 +8,84 @@ import database.db_manager as db
 import utils.helpers as helpers
 from aiogram.fsm.context import FSMContext
 
+async def process_show_inst(callback_query: types.CallbackQuery):
+    """Показывает подробную инструкцию по настройке VPN для выбранной ОС."""
+    platform = callback_query.data.split("_")[1]
+    
+    text = ""
+    keyboard = []
+
+    if platform == "ios":
+        text = (
+            "🍏 **Инструкция по настройке для iOS (iPhone / iPad)**\n\n"
+            "📱 **Рекомендуемый клиент:** **V2RAGE** или **NpvTunnel**\n\n"
+            "**Пошаговая настройка (на примере V2RAGE):**\n"
+            "1. Скачайте и установите приложение по кнопке ниже.\n"
+            "2. Скопируйте вашу **ссылку на подписку** (из Личного кабинета бота).\n"
+            "3. Откройте приложение **V2RAGE** и нажмите **`+`** в правом верхнем углу.\n"
+            "4. Нажмите **«Вставить»**, ваша ссылка должна прикрепиться.\n"
+            "5. Выберите появившийся сервер и переключите ползунок для подключения.\n\n"
+            "💡 *При обновлении подписки приложение будет автоматически получать свежие рабочие узлы.*"
+        )
+        keyboard = [
+            [InlineKeyboardButton(text="📥 Скачать V2RAGE (App Store)", url="https://apps.apple.com/ru/app/v2rage/id6761075402")],
+            [InlineKeyboardButton(text="🔙 К выбору ОС", callback_data="show_docs")],
+            [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
+        ]
+
+    elif platform == "android":
+        text = (
+            "🤖 **Инструкция по настройке для Android**\n\n"
+            "📱 **Рекомендуемый клиент:** **v2rayNG** (Бесплатный, стабильный клиент из Google Play)\n\n"
+            "**Пошаговая настройка:**\n"
+            "1. Установите приложение **v2rayNG** из Google Play / RuStore.\n"
+            "2. Скопируйте вашу **ссылку на подписку** (из Личного кабинета бота).\n"
+            "3. Откройте **v2rayNG**, нажмите на меню **`≡`** (слева вверху) ➔ **«Настройки групп подписок»**.\n"
+            "4. Нажмите **`+`** (вверху), введите имя (например `Buff VPN`) и вставьте вашу ссылку в поле **«URL»**.\n"
+            "5. Сохраните (галочка вверху справа) и вернитесь на главный экран.\n"
+            "6. Нажмите **три точки** (справа вверху) ➔ **«Обновить подписку»**.\n"
+            "7. Нажмите на кружок с галочкой внизу справа для подключения."
+        )
+        keyboard = [
+            [InlineKeyboardButton(text="📥 Скачать v2rayNG (Google Play)", url="https://play.google.com/store/apps/details?id=com.v2ray.ang")],
+            [InlineKeyboardButton(text="🔙 К выбору ОС", callback_data="show_docs")],
+            [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
+        ]
+
+    elif platform == "windows":
+        text = (
+            "💻 **Инструкция по настройке для Windows**\n\n"
+            "💻 **Рекомендуемый клиент:** **v2rayN** или **NekoBox**\n\n"
+            "**Пошаговая настройка (v2rayN):**\n"
+            "1. Скачайте и распакуйте архив с приложением **v2rayN** (нужен файл `v2rayN-With-Core.zip`).\n"
+            "2. Скопируйте вашу **ссылку на подписку** (из Личного кабинета бота).\n"
+            "3. Запустите `v2rayN.exe`.\n"
+            "4. Нажмите сверху вкладку **«Подписка» (Subscription)** ➔ **«Настройка групп подписок»**.\n"
+            "5. Нажмите **«Добавить»**, введите имя `Buff VPN`, вставьте вашу ссылку в поле **«URL»** и нажмите **«Сохранить»**.\n"
+            "6. Вернитесь в главное окно, откройте **«Подписка»** ➔ **«Обновить подписку»** (или `Ctrl+O`).\n"
+            "7. В нижней панели приложения переключите **«Системный прокси» (System Proxy)** в режим **«Включить» (Set system proxy)**."
+        )
+        keyboard = [
+            [InlineKeyboardButton(text="📥 Скачать v2rayN (GitHub)", url="https://github.com/2dust/v2rayN/releases")],
+            [InlineKeyboardButton(text="🔙 К выбору ОС", callback_data="show_docs")],
+            [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
+        ]
+
+    await callback_query.message.edit_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
+        parse_mode="Markdown",
+        disable_web_page_preview=True
+    )
+    await callback_query.answer()
+
 async def process_show_docs(callback_query: types.CallbackQuery):
     """Открывает краткую документацию и развилку выбора ОС."""
     text = (
         "📖 **Документация по проекту Buff VPN**\n\n"
-        "Наш VPN работает на базе протокола **VLESS-Reality** — это один из самых быстрых и скрытных "
-        "протоколов шифрования на сегодняшний день. Он полностью маскирует трафик под обычное посещение зарубежных сайтов.\n\n"
-        "Для начала работы выберите операционную систему вашего устройства, чтобы получить пошаговую инструкцию и ссылки на приложения:"
+        "Наш сервис создан для того, чтобы ваша работа в интернете оставалась быстрой и"
+        "конфиденциальной. Соединение работает так, что внешне оно неотличимо от обычного просмотра сайтов. \n\n"
+        "Выберите ваше устройство из списка ниже, и мы сразу пришлём простую пошаговую инструкцию для начала работы:"
     )
     keyboard = [
         [InlineKeyboardButton(text="🍏 iOS (iPhone / iPad)", callback_data="inst_ios")],
