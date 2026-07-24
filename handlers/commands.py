@@ -36,11 +36,9 @@ async def cmd_start(message: types.Message):
             keyboard.append([InlineKeyboardButton(text="🎁 Активировать тест (1 день)", callback_data="activate_trial")])
         
         keyboard.append([InlineKeyboardButton(text="💳 Оформить подписку", callback_data="upgrade_menu")])
-        
+
+    keyboard.append([InlineKeyboardButton(text="📋 Пользовательское соглашение", callback_data="show_user_agreement")])
     keyboard.append([InlineKeyboardButton(text="📖 Документация по проекту", callback_data="show_docs")])
-    keyboard.append([
-        InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq"),
-        InlineKeyboardButton(text="💬 Техподдержка", callback_data="start_support_ticket")
-    ])
+    keyboard.append([InlineKeyboardButton(text="💬 Техподдержка", callback_data="start_support_ticket")])
     
     await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="Markdown")
