@@ -7,7 +7,7 @@ import html
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 
 # Принудительно добавляем текущую директорию в PYTHONPATH для корректных импортов в Docker
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -31,6 +31,14 @@ logger = logging.getLogger("main")
 
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
+
+async def set_bot_commands(bot: Bot):
+    commands = [
+        BotCommand(command="start", description="Главное меню"),
+        BotCommand(command="terms", description="Пользовательское соглашение"),
+        BotCommand(command="privacy", description="Политика конфиденциальности"),
+    ]
+    await bot.set_my_commands(commands)
 
 async def back_to_menu(callback_query: types.CallbackQuery):
     await callback_query.answer()
@@ -114,15 +122,17 @@ async def process_start_support(callback_query: types.CallbackQuery, state: FSMC
 
 # --- Регистрация хэндлеров Telegram ---
 dp.message.register(commands.cmd_start, Command("start"))
+dp.message.register(commands.cmd_privacy, Command("privacy"))
+dp.message.register(commands.cmd_terms, Command("terms"))
 dp.callback_query.register(callbacks.process_upgrade_menu, lambda c: c.data == "upgrade_menu")
 dp.callback_query.register(callbacks.process_buy_tariff, lambda c: c.data.startswith("buy:"))
 dp.callback_query.register(callbacks.process_activate_trial_callback, lambda c: c.data == "activate_trial")
 dp.callback_query.register(callbacks.process_show_docs, lambda c: c.data == "show_docs")
 dp.callback_query.register(callbacks.process_show_user_agreement, lambda c: c.data == "show_user_agreement")
+dp.callback_query.register(callbacks.process_show_terms, lambda c: c.data == "show_terms")
 dp.callback_query.register(callbacks.process_show_inst, lambda c: c.data.startswith("inst_"))
 dp.callback_query.register(process_start_support, lambda c: c.data == "start_support_ticket")
 dp.callback_query.register(back_to_menu, lambda c: c.data == "back_to_menu") # Назад в меню
-
 
 # --- API эндпоинты для интеграции с вашим сайтом ---
 async def handle_website_trial_api(request):
@@ -160,6 +170,7 @@ async def main():
     await db.init_db()
     await start_web_server()
     scheduler.start_scheduler(bot)
+    set_bot_commands(bot)
     
     logger.info("Запуск Telegram-бота...")
     await dp.start_polling(bot)
