@@ -13,14 +13,27 @@ logger = logging.getLogger("payment_service")
 
 # --- 1. Функция генерации подписи (сигнатуры) ---
 def generate_signature(params: dict, secret_key: str) -> str:
-    """Генерирует HMAC SHA256 сигнатуру из словаря параметров."""
-    # Сортировка ключей в алфавитном порядке
+    """Генерирует HMAC SHA256 сигнатуру из словаря параметров, полностью совместимую с PHP."""
+    # 1. Сортировка ключей в алфавитном порядке
     sorted_keys = sorted(params.keys())
 
-    # Конкатенация значений отсортированных параметров в одну строку
-    concatenated_string = "".join(str(params[key]) for key in sorted_keys)
+    values = []
+    for key in sorted_keys:
+        val = params[key]
+        
+        # Нормализация чисел с плавающей точкой (Float) под стандарты PHP
+        if isinstance(val, float):
+            if val.is_integer():
+                val = int(val)  # Превращаем 300.0 в 300, чтобы убрать '.0'
+            else:
+                val = round(val, 2)  # Если есть копейки, округляем до 2 знаков
+                
+        values.append(str(val))
 
-    # Генерация HMAC SHA256 хеша
+    # 2. Конкатенация значений параметров без разделителей
+    concatenated_string = "".join(values)
+
+    # 3. Генерация HMAC SHA256 хеша
     signature = hmac.new(
         key=secret_key.encode("utf-8"),
         msg=concatenated_string.encode("utf-8"),
