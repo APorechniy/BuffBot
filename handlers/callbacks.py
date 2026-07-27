@@ -198,7 +198,7 @@ async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
         try:
             gateway = ActivePaymentGateway()
             # На этот адрес платежка пришлет callback-уведомление после оплаты
-            hook_url = f"{settings.WEBHOOK_BASE_URL.rstrip('/')}/webhook/payment"
+            hook_url = f"{settings.PAYMENT_WEBHOOK_URL.rstrip('/')}/webhook/payment"
             
             # Вызываем создание счета в платежной системе
             invoice = await gateway.create_invoice(order_id, amount, hook_url)

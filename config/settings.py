@@ -20,6 +20,7 @@ PAYMENT_URL = os.getenv("PAYMENT_URL", "")
 PAYMENT_SHOP_ID = os.getenv("PAYMENT_SHOP_ID", "")
 PAYMENT_API_KEY = os.getenv("PAYMENT_API_KEY", "")
 PAYMENT_CALLBACK_KEY = os.getenv("PAYMENT_CALLBACK_KEY", "")
+PAYMENT_WEBHOOK_URL = os.getenv("PAYMENT_WEBHOOK_URL", "")
 
 # --- НАСТРОЙКИ 3X-UI ---
 XUI_URL = os.getenv("XUI_URL", "http://127.0.0.1:2053")
