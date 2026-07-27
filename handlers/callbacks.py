@@ -1,5 +1,6 @@
 # handlers/callbacks.py
 import uuid
+import logging
 from aiogram import types, Bot
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -7,6 +8,9 @@ from config import settings
 import database.db_manager as db
 import utils.helpers as helpers
 from aiogram.fsm.context import FSMContext
+from services.payment_service import ActivePaymentGateway
+
+logger = logging.getLogger("callbacks")
 
 # ==========================================
 # ТЕКСТЫ ДОКУМЕНТОВ
@@ -177,28 +181,65 @@ async def process_upgrade_menu(callback_query: types.CallbackQuery):
 async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
     user_id = callback_query.from_user.id
     days = int(callback_query.data.split(":")[1])
+    
+    # Определяем стоимость на основе выбранного тарифа
     amount = settings.PRICE_30_DAYS if days == 30 else settings.PRICE_90_DAYS
     
-    await callback_query.answer("Обработка тарифа...")
+    await callback_query.answer("Формируем заказ...")
     
+    # Проверяем FeatureToggle приема платежей
     if settings.PAYMENT_ENABLED:
-        # Платный сценарий
-        order_id = str(uuid.uuid4())
+        order_id = str(uuid.uuid4()) # Генерируем уникальный номер заказа в нашей системе
+        logger.info(f"Регистрация покупки тарифа: user_id={user_id}, days={days}, amount={amount}, order_id={order_id}")
+        
+        # ОБЯЗАТЕЛЬНО: Сначала пишем лог платежа в БД со статусом по умолчанию 'pending'
         await db.save_payment(order_id, user_id, amount)
-        # Здесь будет генерация ссылки через payment_service
-        await bot.send_message(user_id, "Генерация счета отключена. Обратитесь в поддержку.")
+        
+        try:
+            gateway = ActivePaymentGateway()
+            # На этот адрес платежка пришлет callback-уведомление после оплаты
+            hook_url = f"{settings.WEBHOOK_BASE_URL.rstrip('/')}/webhook/payment"
+            
+            # Вызываем создание счета в платежной системе
+            invoice = await gateway.create_invoice(order_id, amount, hook_url)
+            
+            keyboard = [
+                [InlineKeyboardButton(text="💳 Перейти к оплате", url=invoice.payment_url)],
+                [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")]
+            ]
+            reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+            
+            await bot.send_message(
+                user_id,
+                f"💳 **Счет на оплату доступа ({days} дней) успешно создан!**\n\n"
+                f"• **Сумма к оплате:** {amount} руб.\n"
+                f"• **Номер заказа:** `{order_id}`\n\n"
+                "Нажмите кнопку ниже для проведения безопасного платежа через СБП или банковскую карту.\n\n"
+                "⚠️ *После подтверждения транзакции бот автоматически разблокирует ваш VPN.*",
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.exception(f"Критическая ошибка при выставлении счета для пользователя {user_id}: {e}")
+            await bot.send_message(
+                user_id,
+                "❌ **Не удалось сформировать ссылку для оплаты.**\n\n"
+                "На сервере возникли технические неполадки с платежным шлюзом. "
+                "Пожалуйста, обратитесь в службу поддержки через меню бота, мы выпишем счет вручную."
+            )
     else:
-        # Бесплатный сценарий (FeatureToggle) - мгновенный апгрейд
+        # Сценарий бесплатного апгрейда (FeatureToggle=False)
         try:
             sub_link = await helpers.grant_vpn_access(user_id, days)
             await bot.send_message(
                 user_id,
-                f"🎉 **Тариф успешно активирован на {days} дней!**\n\n"
-                f"🔗 Ссылка на подписку:\n`{sub_link}`",
+                f"🎉 **Бесплатный тестовый период на {days} дней успешно активирован!**\n\n"
+                f"🔗 Ваша ссылка на подписку:\n`{sub_link}`",
                 parse_mode="Markdown"
             )
         except Exception as e:
-            await bot.send_message(user_id, f"Произошла ошибка при апгрейде тарифа: {e}")
+            logger.exception(f"Ошибка авто-выдачи доступа без оплаты для {user_id}: {e}")
+            await bot.send_message(user_id, f"Произошла техническая ошибка при активации доступа: {e}")
 
 async def process_activate_trial_callback(callback_query: types.CallbackQuery, bot: Bot):
     user_id = callback_query.from_user.id

@@ -18,6 +18,7 @@ import scheduler
 import handlers.commands as commands
 import handlers.callbacks as callbacks
 import utils.helpers as helpers
+from services.payment_service import ActivePaymentGateway
 
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
@@ -31,6 +32,71 @@ logger = logging.getLogger("main")
 
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
+
+async def handle_payment_webhook(request):
+    """
+    Принимает входящий вебхук об успешной оплате счета от платежного шлюза.
+    """
+    logger.info("Получен входящий вебхук от платежной системы.")
+    
+    headers = dict(request.headers)
+    body_bytes = await request.read()
+    
+    gateway = ActivePaymentGateway()
+    
+    # 1. Валидируем подпись вебхука
+    if not gateway.verify_webhook_signature(body_bytes, headers):
+        logger.warning("Запрос вебхука отклонен: неверная подпись сигнатуры.")
+        return web.Response(text="Forbidden (Invalid Signature)", status=403)
+        
+    try:
+        # 2. Извлекаем данные
+        payload = gateway.parse_webhook(body_bytes, {})
+        logger.info(f"Вебхук успешно верифицирован. Номер заказа: {payload.order_id}, Статус: {payload.status}")
+        
+        if payload.status == "success":
+            # Ищем платеж в нашей БД
+            payment = await db.get_payment(payload.order_id)
+            if not payment:
+                logger.error(f"Платеж с заказом {payload.order_id} отсутствует в нашей БД!")
+                return web.Response(text="Order not found", status=404)
+                
+            # Проверяем, что платеж еще не был зачислен ранее (защита от двойного начисления)
+            if payment['status'] == 'pending':
+                user_id = payment['user_id']
+                amount = payment['amount']
+                
+                # Автоматически определяем тарифный срок по сумме транзакции
+                # Если сумма ближе к стоимости 90 дней — выдаем 90 дней, иначе 30
+                days = 90 if abs(amount - settings.PRICE_90_DAYS) < 1.0 else 30
+                
+                logger.info(f"Начисление подписки по платежу. Пользователь: {user_id}, Дней: {days}, Сумма: {amount}")
+                
+                # Помечаем платеж как успешно закрытый в БД
+                await db.mark_payment_success(payload.order_id)
+                
+                # Вызываем наш готовый хелпер для продления/создания ключа в 3X-UI и БД бота
+                sub_link = await helpers.grant_vpn_access(user_id, days)
+                
+                # Отправляем уведомление пользователю в Telegram
+                try:
+                    await bot.send_message(
+                        user_id,
+                        f"🎉 **Оплата успешно получена!**\n\n"
+                        f"📅 Действие вашей подписки на VPN продлено на **{days} дней**.\n"
+                        f"🔗 Ваша ссылка на подписку для импорта в приложения:\n`{sub_link}`\n\n"
+                        f"Спасибо, что вы с нами!",
+                        parse_mode="Markdown"
+                    )
+                except Exception as e:
+                    logger.warning(f"Не удалось отправить TG-сообщение пользователю {user_id} после оплаты: {e}")
+                    
+        # Платежка ожидает получить статус 200 OK в ответ на вебхук
+        return web.Response(text="OK", status=200)
+        
+    except Exception as e:
+        logger.exception(f"Исключение при обработке вебхука платежа: {e}")
+        return web.Response(text="Internal Server Error", status=500)
 
 async def set_bot_commands(bot: Bot):
     commands = [
@@ -159,6 +225,7 @@ async def start_web_server():
     app = web.Application()
     # API для сайта
     app.router.add_post('/api/trial', handle_website_trial_api)
+    app.router.add_post('/webhook/payment', handle_payment_webhook)
     
     runner = web.AppRunner(app)
     await runner.setup()
