@@ -38,7 +38,7 @@ PRIVACY_POLICY_TEXT = (
 )
 
 TERMS_OF_SERVICE_TEXT = (
-    "📜 **Пользовательское соглашение (Terms of Service)**\n\n"
+    "📜 **Пользовательское соглашение**\n\n"
     "Используя сервис **Buff VPN**, вы соглашаетесь с нижеследующими условиями:\n\n"
 
     "**1. Предоставление услуг**\n"
@@ -104,7 +104,6 @@ async def cmd_start(message: types.Message):
 async def cmd_privacy(message: types.Message):
     """Показывает политику конфиденциальности."""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📜 Пользовательское соглашение", callback_data="show_terms_callback")],
         [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
     ])
     await message.answer(PRIVACY_POLICY_TEXT, reply_markup=keyboard, parse_mode="Markdown")
@@ -112,7 +111,6 @@ async def cmd_privacy(message: types.Message):
 async def cmd_terms(message: types.Message):
     """Показывает пользовательское соглашение."""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔒 Политика конфиденциальности", callback_data="show_privacy_callback")],
         [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
     ])
     await message.answer(TERMS_OF_SERVICE_TEXT, reply_markup=keyboard, parse_mode="Markdown")

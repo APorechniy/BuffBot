@@ -211,12 +211,12 @@ async def process_show_user_agreement(callback_query: types.CallbackQuery):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
     ])
-    await callback_query.message.edit_text(PRIVACY_POLICY_TEXT, reply_markup=keyboard, parse_mode="Markdown")
+    await callback_query.message.edit_text(TERMS_OF_SERVICE_TEXT, reply_markup=keyboard, parse_mode="Markdown")
     await callback_query.answer()
 
 async def process_show_terms(callback_query: types.CallbackQuery):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
     ])
-    await callback_query.message.edit_text(TERMS_OF_SERVICE_TEXT, reply_markup=keyboard, parse_mode="Markdown")
+    await callback_query.message.edit_text(PRIVACY_POLICY_TEXT, reply_markup=keyboard, parse_mode="Markdown")
     await callback_query.answer()
