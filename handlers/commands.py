@@ -64,7 +64,6 @@ TERMS_OF_SERVICE_TEXT = (
 # ==========================================
 # ОБРАБОТЧИКИ КОМАНД
 # ==========================================
-
 async def cmd_start(message: types.Message):
     user_id = message.from_user.id
     user = await db.create_or_get_user(user_id)
@@ -96,6 +95,7 @@ async def cmd_start(message: types.Message):
         keyboard.append([InlineKeyboardButton(text="💳 Оформить подписку", callback_data="upgrade_menu")])
 
     keyboard.append([InlineKeyboardButton(text="📋 Пользовательское соглашение", callback_data="show_user_agreement")])
+    keyboard.append([InlineKeyboardButton(text="🔒 Политика конфиденциальности", callback_data="show_terms")])
     keyboard.append([InlineKeyboardButton(text="📖 Документация по проекту", callback_data="show_docs")])
     keyboard.append([InlineKeyboardButton(text="💬 Техподдержка", callback_data="start_support_ticket")])
     

@@ -156,7 +156,7 @@ async def process_show_docs(callback_query: types.CallbackQuery):
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), 
         parse_mode="Markdown"
     )
-    
+
 async def process_upgrade_menu(callback_query: types.CallbackQuery):
     """Показывает тарифную сетку для покупки/продления."""
     text = (
@@ -209,7 +209,6 @@ async def process_activate_trial_callback(callback_query: types.CallbackQuery, b
 
 async def process_show_user_agreement(callback_query: types.CallbackQuery):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📜 Пользовательское соглашение", callback_data="show_terms_callback")],
         [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
     ])
     await callback_query.message.edit_text(PRIVACY_POLICY_TEXT, reply_markup=keyboard, parse_mode="Markdown")
@@ -217,7 +216,6 @@ async def process_show_user_agreement(callback_query: types.CallbackQuery):
 
 async def process_show_terms(callback_query: types.CallbackQuery):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔒 Политика конфиденциальности", callback_data="show_privacy_callback")],
         [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
     ])
     await callback_query.message.edit_text(TERMS_OF_SERVICE_TEXT, reply_markup=keyboard, parse_mode="Markdown")
