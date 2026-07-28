@@ -90,6 +90,6 @@ async def check_subscriptions_job(bot: Bot):
 def start_scheduler(bot: Bot):
     scheduler = AsyncIOScheduler()
     # Фоновый аудит запускается ежедневно в 12:00 по серверному времени
-    scheduler.add_job(check_subscriptions_job, 'cron', hour=12, minute=0, args=[bot])
+    scheduler.add_job(check_subscriptions_job, 'interval', minutes=1, args=[bot])
     scheduler.start()
     logger.info("Фоновый планировщик задач успешно запущен.")

@@ -165,11 +165,13 @@ async def process_upgrade_menu(callback_query: types.CallbackQuery):
     """Показывает тарифную сетку для покупки/продления."""
     text = (
         "💎 **Выберите тарифный план для активации/продления:**\n\n"
+        f"• ⚡ **Тест-драйв (5 минут)** — {settings.PRICE_TEST_TARIFF} руб.\n"
         f"• **1 месяц (30 дней)** — {settings.PRICE_30_DAYS} руб.\n"
         f"• **3 месяца (90 дней)** — {settings.PRICE_90_DAYS} руб.\n\n"
         "После выбора вы будете перенаправлены на страницу оплаты."
     )
     keyboard = [
+        [InlineKeyboardButton(text=f"⚡ Тест-драйв (5 мин) — {settings.PRICE_TEST_TARIFF} р.", callback_data="buy:5m")],
         [
             InlineKeyboardButton(text=f"💎 1 месяц — {settings.PRICE_30_DAYS} р.", callback_data="buy:30"),
             InlineKeyboardButton(text=f"👑 3 месяца — {settings.PRICE_90_DAYS} р.", callback_data="buy:90")
@@ -180,10 +182,23 @@ async def process_upgrade_menu(callback_query: types.CallbackQuery):
 
 async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
     user_id = callback_query.from_user.id
-    days = int(callback_query.data.split(":")[1])
-    
-    # Определяем стоимость на основе выбранного тарифа
-    amount = settings.PRICE_30_DAYS if days == 30 else settings.PRICE_90_DAYS
+    tariff_type = callback_query.data.split(":")[1]
+
+    if tariff_type == "5m":
+        days = 0
+        minutes = 5
+        amount = settings.PRICE_TEST_TARIFF
+        tariff_name = "Тест-драйв (5 минут)"
+    elif tariff_type == "30":
+        days = 30
+        minutes = 0
+        amount = settings.PRICE_30_DAYS
+        tariff_name = "1 месяц (30 дней)"
+    elif tariff_type == "90":
+        days = 90
+        minutes = 0
+        amount = settings.PRICE_90_DAYS
+        tariff_name = "3 месяца (90 дней)"
     
     await callback_query.answer("Формируем заказ...")
     
@@ -211,7 +226,7 @@ async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
             
             await bot.send_message(
                 user_id,
-                f"💳 **Счет на оплату доступа ({days} дней) успешно создан!**\n\n"
+                f"💳 **Счет на оплату тарифа '{tariff_name}' создан!**\n\n"
                 f"• **Сумма к оплате:** {amount} руб.\n"
                 f"• **Номер заказа:** `{order_id}`\n\n"
                 "Нажмите кнопку ниже для проведения безопасного платежа через СБП или банковскую карту.\n\n"
@@ -230,7 +245,7 @@ async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
     else:
         # Сценарий бесплатного апгрейда (FeatureToggle=False)
         try:
-            sub_link = await helpers.grant_vpn_access(user_id, days)
+            sub_link = await helpers.grant_vpn_access(user_id, days, minutes=minutes)
             await bot.send_message(
                 user_id,
                 f"🎉 **Бесплатный тестовый период на {days} дней успешно активирован!**\n\n"

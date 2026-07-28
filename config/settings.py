@@ -12,6 +12,7 @@ WEB_PORT = int(os.getenv("WEB_PORT", 8000))
 PAYMENT_ENABLED = os.getenv("PAYMENT_ENABLED", "False").lower() in ("true", "1", "yes")
 
 # Тарифная сетка
+PRICE_TEST_TARIFF = float(os.getenv("PRICE_TEST_TARIFF", 12.00))
 PRICE_30_DAYS = float(os.getenv("PRICE_30_DAYS", 300.00))
 PRICE_90_DAYS = float(os.getenv("PRICE_90_DAYS", 800.00))
 

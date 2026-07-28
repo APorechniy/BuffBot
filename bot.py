@@ -63,33 +63,39 @@ async def handle_payment_webhook(request):
                 
             # Проверяем, что платеж еще не был зачислен ранее (защита от двойного начисления)
             if payment['status'] == 'pending':
-                user_id = payment['user_id']
-                amount = payment['amount']
-                
-                # Автоматически определяем тарифный срок по сумме транзакции
-                # Если сумма ближе к стоимости 90 дней — выдаем 90 дней, иначе 30
-                days = 90 if abs(amount - settings.PRICE_90_DAYS) < 1.0 else 30
-                
-                logger.info(f"Начисление подписки по платежу. Пользователь: {user_id}, Дней: {days}, Сумма: {amount}")
-                
-                # Помечаем платеж как успешно закрытый в БД
-                await db.mark_payment_success(payload.order_id)
-                
-                # Вызываем наш готовый хелпер для продления/создания ключа в 3X-UI и БД бота
-                sub_link = await helpers.grant_vpn_access(user_id, days)
-                
-                # Отправляем уведомление пользователю в Telegram
-                try:
-                    await bot.send_message(
-                        user_id,
-                        f"🎉 **Оплата успешно получена!**\n\n"
-                        f"📅 Действие вашей подписки на VPN продлено на **{days} дней**.\n"
-                        f"🔗 Ваша ссылка на подписку для импорта в приложения:\n`{sub_link}`\n\n"
-                        f"Спасибо, что вы с нами!",
-                        parse_mode="Markdown"
-                    )
-                except Exception as e:
-                    logger.warning(f"Не удалось отправить TG-сообщение пользователю {user_id} после оплаты: {e}")
+                    user_id = payment['user_id']
+                    amount = payment['amount']
+                    
+                    # Распознаем тарифный план по сумме оплаты
+                    if abs(amount - settings.PRICE_TEST_TARIFF) < 1.0:
+                        days, minutes = 0, 5
+                        tariff_label = "Тест-драйв (5 минут)"
+                    elif abs(amount - settings.PRICE_90_DAYS) < 1.0:
+                        days, minutes = 90, 0
+                        tariff_label = "3 месяца"
+                    else:
+                        days, minutes = 30, 0
+                        tariff_label = "1 месяц"
+                        
+                    logger.info(f"Начисление подписки. Пользователь: {user_id}, Дни: {days}, Минуты: {minutes}")
+                    
+                    # Закрываем платеж
+                    await db.mark_payment_success(payload.order_id)
+                    
+                    # Выдаем доступ на указанные дни и минуты
+                    sub_link = await helpers.grant_vpn_access(user_id, days=days, minutes=minutes)
+                    
+                    # Оповещаем пользователя в Telegram
+                    try:
+                        await bot.send_message(
+                            user_id,
+                            f"🎉 **Оплата зачислена!**\n\n"
+                            f"📅 Активирован тариф **'{tariff_label}'**.\n"
+                            f"🔗 Ссылка на подписку:\n`{sub_link}`",
+                            parse_mode="Markdown"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Не удалось отправить уведомление: {e}")
                     
         # Платежка ожидает получить статус 200 OK в ответ на вебхук
         return web.Response(text="OK", status=200)

@@ -11,15 +11,13 @@ from services.x3ui_service import X3UiClient
 
 logger = logging.getLogger("helpers")
 
-async def grant_vpn_access(user_id: int, days: int) -> str:
-    """Обобщенная функция выдачи/продления доступа на N дней."""
+async def grant_vpn_access(user_id: int, days: int = 0, hours: int = 0, minutes: int = 0) -> str:
+    """Выдача доступа на N дней и M минут."""
     user = await db.get_user(user_id)
     client_uuid = user['client_uuid'] if (user and user['client_uuid']) else str(uuid.uuid4())
     sub_id = user['sub_id'] if (user and user['sub_id']) else secrets.token_hex(8)
     client_email = f"tg_{user_id}"
     
-    # 1. Считаем дату окончания на основе переданных дней
-    # Если у пользователя уже активна подписка, продлеваем с даты окончания
     current_expiry = None
     if user and user['expires_at'] and user['status'] == 'active':
         try:
@@ -28,12 +26,11 @@ async def grant_vpn_access(user_id: int, days: int) -> str:
             pass
             
     base_time = current_expiry if (current_expiry and current_expiry > datetime.now()) else datetime.now()
-    expiry_dt = base_time + timedelta(days=days)
+    expiry_dt = base_time + timedelta(days=days, hours=hours, minutes=minutes) # Расчет даты
     expiry_ms = int(expiry_dt.timestamp() * 1000)
     
     xui = X3UiClient()
         
-    # 2. Добавляем в панель
     success = await xui.add_client(
         inbound_id=settings.XUI_INBOUND_ID,
         email=client_email,
@@ -43,22 +40,21 @@ async def grant_vpn_access(user_id: int, days: int) -> str:
         expiry_time_ms=expiry_ms
     )
     
-    # 3. Если уже был — обновляем статус и продлеваем время
     if not success:
         activated = await xui.update_client_status(
             inbound_id=settings.XUI_INBOUND_ID,
             client_uuid=client_uuid,
             email=client_email,
             sub_id=sub_id,
-            enable=True,
             tg_id=user_id,
+            enable=True,
             expiry_time_ms=expiry_ms
         )
         if not activated:
-            raise Exception("3X-UI отклонила обновление параметров клиента.")
+            raise Exception("3X-UI панели отклонила обновление параметров клиента.")
             
-    # 4. Фиксируем в локальной БД
-    await db.activate_user_subscription(user_id, client_uuid, sub_id, days=days)
+    # Запись в локальную базу данных
+    await db.activate_user_subscription(user_id, client_uuid, sub_id, days=days, hours=hours, minutes=minutes)
     return f"{settings.XUI_SUB_BASE_URL.rstrip('/')}/buff-subscribe/{sub_id}"
 
 async def activate_trial_period(user_id: int, bot: Bot) -> tuple[bool, str]:

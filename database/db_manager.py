@@ -67,7 +67,7 @@ async def mark_payment_success(order_id: str):
         await conn.execute("UPDATE payments SET status = 'success' WHERE order_id = ?", (order_id,))
         await conn.commit()
 
-async def activate_user_subscription(user_id: int, client_uuid: str, sub_id: str, days: int):
+async def activate_user_subscription(user_id: int, client_uuid: str, sub_id: str, days: int = 0, hours: int = 0, minutes: int = 0):
     async with aiosqlite.connect(DB_NAME) as conn:
         user = await get_user(user_id)
         current_expiry = None
@@ -78,7 +78,9 @@ async def activate_user_subscription(user_id: int, client_uuid: str, sub_id: str
                 pass
         
         base_time = current_expiry if (current_expiry and current_expiry > datetime.now()) else datetime.now()
-        new_expiry = (base_time + timedelta(days=days)).isoformat()
+        
+        # Поддерживаем одновременный расчет дней и минут
+        new_expiry = (base_time + timedelta(days=days, hours=hours, minutes=minutes)).isoformat()
         
         await conn.execute(
             """UPDATE users 
