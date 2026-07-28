@@ -258,6 +258,77 @@ async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
             logger.exception(f"Ошибка авто-выдачи доступа без оплаты для {user_id}: {e}")
             await bot.send_message(user_id, f"Произошла техническая ошибка при активации доступа: {e}")
 
+async def process_check_payment(callback_query: types.CallbackQuery, bot: Bot):
+    user_id = callback_query.from_user.id
+    order_id = callback_query.data.split(":")[1]
+    
+    # 1. Извлекаем платеж из локальной БД бота
+    payment = await db.get_payment(order_id)
+    if not payment:
+        await callback_query.answer("Заказ не найден в базе данных бота.", show_alert=True)
+        return
+        
+    # Защита от повторной ручной активации
+    if payment['status'] == 'success':
+        await callback_query.answer("Этот счет уже был успешно оплачен и зачислен!", show_alert=True)
+        return
+
+    await callback_query.answer("Запрос статуса в платежной системе...")
+    
+    try:
+        gateway = ActivePaymentGateway()
+        # Вызываем API проверки статуса
+        status = await gateway.check_invoice_status(order_id)
+        
+        if status == "PAID":
+            # Активируем подписку (Логика полностью совпадает с вебхуком)
+            amount = payment['amount']
+            
+            if abs(amount - settings.PRICE_TEST_TARIFF) < 1.0:
+                days, minutes = 0, 5
+                tariff_label = "Тест-драйв (5 минут)"
+            elif abs(amount - settings.PRICE_90_DAYS) < 1.0:
+                days, minutes = 90, 0
+                tariff_label = "3 месяца"
+            else:
+                days, minutes = 30, 0
+                tariff_label = "1 месяц"
+                
+            logger.info(f"Ручное начисление подписки по кнопке. Пользователь: {user_id}, Дней: {days}, Минуты: {minutes}")
+            
+            # Закрываем платеж в БД как успешный
+            await db.mark_payment_success(order_id)
+            
+            # Выдаем/продлеваем доступ в панели 3X-UI и БД
+            sub_link = await helpers.grant_vpn_access(user_id, days=days, minutes=minutes)
+            
+            # Отправляем сообщение пользователю
+            await bot.send_message(
+                user_id,
+                f"🎉 **Оплата успешно подтверждена вручную!**\n\n"
+                f"📅 Активирован тариф **'{tariff_label}'**.\n"
+                f"🔗 Ваша ссылка на подписку:\n`{sub_link}`",
+                parse_mode="Markdown"
+            )
+            # Удаляем сообщение со старыми кнопками оплаты
+            await callback_query.message.delete()
+            
+        elif status == "NEW":
+            await callback_query.answer(
+                "⏳ Платеж еще не подтвержден банком.\n\n"
+                "Если вы уже провели платеж, пожалуйста, подождите 1-2 минуты и нажмите кнопку проверки снова.", 
+                show_alert=True
+            )
+        elif status == "EXPIRED":
+            await db.update_user_status(user_id, 'expired') # помечаем как истекший
+            await callback_query.answer("❌ Срок действия этого счета истек. Пожалуйста, выпишите новый счет.", show_alert=True)
+        elif status in ("ERROR", "REFUNDED"):
+            await callback_query.answer(f"⚠️ Платежная система вернула статус '{status}'. Доступ не может быть зачислен.", show_alert=True)
+            
+    except Exception as e:
+        logger.exception(f"Исключение при ручной проверке статуса платежа {order_id}: {e}")
+        await callback_query.answer("Ошибка связи с платежной системой. Попробуйте еще раз позже.", show_alert=True)
+
 async def process_activate_trial_callback(callback_query: types.CallbackQuery, bot: Bot):
     user_id = callback_query.from_user.id
     await callback_query.answer()

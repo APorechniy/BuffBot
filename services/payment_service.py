@@ -75,6 +75,11 @@ class BasePaymentGateway(ABC):
         pass
 
     @abstractmethod
+    async def check_invoice_status(self, order_id: str) -> str:
+        """Запрашивает статус инвойса у платежной системы по order_id."""
+        pass
+
+    @abstractmethod
     def verify_webhook_signature(self, raw_body: bytes, headers: Dict[str, str]) -> bool:
         """Проверяет подлинность вебхука (валидность сигнатуры / HMAC)."""
         pass
@@ -145,6 +150,46 @@ class ActivePaymentGateway(BasePaymentGateway):
                         raise parse_err
                 else:
                     raise Exception(f"Ошибка API платежной системы ({r.status}): {response_text}")
+
+    async def check_invoice_status(self, order_id: str) -> str:
+        url = f"{self.base_url}/invoice/status"
+        
+        # Передаем shop_id и order_id. Параметр id опускаем согласно правилу валидации
+        payload = {
+            "shop_id": self.shop_id,
+            "order_id": order_id
+        }
+        
+        # Подписываем запрос по API_KEY (исходящий запрос)
+        signature = generate_signature(payload, self.api_key)
+        
+        headers = {
+            "Content-Type": "application/json",
+            "X-SIGNATURE": signature
+        }
+        
+        logger.info(f"Ручной запрос статуса счета в платежную систему. URL: {url}, Заказ: {order_id}")
+        logger.debug(f"Payload: {payload}")
+        
+        connector = aiohttp.TCPConnector(ssl=False)
+        async with aiohttp.ClientSession(connector=connector) as session:
+            async with session.post(url, json=payload, headers=headers) as r:
+                logger.info(f"Ответ проверки статуса от платежной системы: HTTP {r.status}")
+                response_text = await r.text()
+                logger.debug(f"Тело ответа: {response_text}")
+                
+                if r.status in (200, 201):
+                    try:
+                        data = json.loads(response_text)
+                        status = data.get("status")
+                        if not status:
+                            raise Exception("Ответ API не содержит статуса счета (поле 'status' отсутствует).")
+                        return str(status).upper()
+                    except Exception as parse_err:
+                        logger.error(f"Не удалось распарсить статус ответа API: {parse_err}")
+                        raise parse_err
+                else:
+                    raise Exception(f"Ошибка API при запросе статуса ({r.status}): {response_text}")
 
     def verify_webhook_signature(self, raw_body: bytes, headers: dict) -> bool:
         """Проверка входящей сигнатуры по CALLBACK_KEY."""
