@@ -220,6 +220,7 @@ async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
             
             keyboard = [
                 [InlineKeyboardButton(text="💳 Перейти к оплате", url=invoice.payment_url)],
+                [InlineKeyboardButton(text="✅ Я оплатил (Проверить)", callback_data=f"check_pay:{order_id}")],
                 [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")]
             ]
             reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -230,7 +231,8 @@ async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
                 f"• **Сумма к оплате:** {amount} руб.\n"
                 f"• **Номер заказа:** `{order_id}`\n\n"
                 "Нажмите кнопку ниже для проведения безопасного платежа через СБП или банковскую карту.\n\n"
-                "⚠️ *После подтверждения транзакции бот автоматически разблокирует ваш VPN.*",
+                "Оплатите счет и нажмите кнопку **«Я оплатил»** для мгновенной ручной проверки зачисления.",
+                "⚠️ *Зачисление обычно происходит в течение 3-5 минут.*",
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
