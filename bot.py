@@ -222,7 +222,7 @@ async def handle_website_trial_api(request):
 
         success, result = await helpers.create_temp_user(bot)
         if success:
-            return web.json_response({"success": True, "sub_link": result})
+            return web.json_response({"success": True, "subscription_url": result})
         else:
             return web.json_response({"success": False, "error": result}, status=400)
     except Exception as e:
