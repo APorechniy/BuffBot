@@ -211,15 +211,16 @@ dp.callback_query.register(back_to_menu, lambda c: c.data == "back_to_menu") # �
 async def handle_website_trial_api(request):
     """
     Эндпоинт для выдачи триала прямо с сайта.
-    Принимает POST JSON: { "tg_id": 123456789 }
+    Выдается на 30 минут, после чего умирает.
+    Цель - заманить клиента в бота
     """
     try:
-        data = await request.json()
-        tg_id = data.get("tg_id")
-        if not tg_id:
-            return web.json_response({"success": False, "error": "Не указан tg_id"}, status=400)
-            
-        success, result = await helpers.activate_trial_period(int(tg_id), bot)
+        client_secret = request.headers.get("X-Internal-Secret", "")
+
+        if not helpers.verify_internal_token(client_secret=client_secret):
+            return web.json_response({"success": False, "error": "Доступ запрещен"}, status=403)
+
+        success, result = await helpers.create_temp_user(bot)
         if success:
             return web.json_response({"success": True, "sub_link": result})
         else:

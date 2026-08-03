@@ -15,6 +15,20 @@ async def check_subscriptions_job(bot: Bot):
     now = datetime.now()
     now_str = now.isoformat()
     xui = X3UiClient()
+
+    temp_users = await db.delete_all_temp_users()
+
+    if temp_users:
+        logger.info(f"Найдено {len(temp_users)} временных профилей для удаления из 3X-UI.")
+        for user in temp_users:
+            client_uuid = user["client_uuid"]
+            user_id = user["user_id"]
+            logger.info(f"Стирание временного клиента {user_id} (UUID: {client_uuid}) из 3X-UI...")
+            
+            # Стираем из ядра Xray
+            await xui.delete_client(inbound_id=settings.XUI_INBOUND_ID, client_uuid=client_uuid)
+            
+        logger.info("Очистка временных пользователей успешно завершена.")
     
     # 1. Заморозка просроченных клиентов
     expired_users = await db.get_expired_users(now_str)

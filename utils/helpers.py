@@ -2,6 +2,10 @@
 import uuid
 import secrets
 import logging
+import hmac
+import random
+import secrets
+import uuid
 from datetime import datetime, timedelta
 from aiogram import Bot
 
@@ -58,7 +62,7 @@ async def grant_vpn_access(user_id: int, days: int = 0, hours: int = 0, minutes:
     return f"{settings.XUI_SUB_BASE_URL.rstrip('/')}/buff-subscribe/{sub_id}"
 
 async def activate_trial_period(user_id: int, bot: Bot) -> tuple[bool, str]:
-    """Логика активации 1-дневного триала по запросу с сайта или бота."""
+    """Логика активации 1-дневного триала по запросу c бота."""
     user = await db.create_or_get_user(user_id)
     
     if user['trial_used'] == 1:
@@ -113,3 +117,48 @@ async def activate_trial_period(user_id: int, bot: Bot) -> tuple[bool, str]:
         logger.warning(f"Не удалось отправить TG-сообщение о триале: {e}")
         
     return True, sub_link
+
+async def create_temp_user(bot: Bot) -> tuple[bool, str]:
+    # Генерируем уникальный временный sub_id с префиксом temp_
+    sub_id = f"temp_{secrets.token_hex(6)}"
+    client_uuid = str(uuid.uuid4())
+    client_email = sub_id
+
+    # Создаем временный отрицательный ID пользователя для SQLite
+    fake_user_id = -random.randint(100000000, 999999999)
+
+    # 30 минут действия демо-периода
+    expiry_dt = datetime.now() + timedelta(minutes=30)
+    expiry_ms = int(expiry_dt.timestamp() * 1000)
+
+    xui = X3UiClient()
+    
+    success = await xui.add_client(
+        inbound_id=settings.XUI_INBOUND_ID,
+        email=client_email,
+        client_uuid=client_uuid,
+        sub_id=sub_id,
+        tg_id=fake_user_id,
+        expiry_time_ms=expiry_ms
+    )
+    
+    if not success:
+        return False, "Панель отклонила активацию демо-пользователя"
+            
+    # Сохраняем использование триала
+    await db.create_or_get_user(fake_user_id)
+
+    sub_link = f"{settings.XUI_SUB_BASE_URL.rstrip('/')}/buff-subscribe/{sub_id}"
+        
+    return True, sub_link
+
+def verify_internal_token(client_secret: str) -> bool:
+    """
+    Проверяет секретный токен из заголовка 'X-Internal-Secret'
+    Возвращает True, если токен совпадает, иначе False.
+    """    
+    if not client_secret:
+        return False
+        
+    # 2. Безопасная сверка токенов (защита от Timing Attacks)
+    return hmac.compare_digest(client_secret, settings.INTERNAL_API_SECRET)
