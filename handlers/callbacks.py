@@ -189,16 +189,19 @@ async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
         minutes = 5
         amount = settings.PRICE_TEST_TARIFF
         tariff_name = "Тест-драйв (5 минут)"
+        total_gb = 1
     elif tariff_type == "30":
         days = 30
         minutes = 0
         amount = settings.PRICE_30_DAYS
         tariff_name = "1 месяц (30 дней)"
+        total_gb = 100
     elif tariff_type == "90":
         days = 90
         minutes = 0
         amount = settings.PRICE_90_DAYS
         tariff_name = "3 месяца (90 дней)"
+        total_gb = 500
     
     await callback_query.answer("Формируем заказ...")
     
@@ -286,12 +289,15 @@ async def process_check_payment(callback_query: types.CallbackQuery, bot: Bot):
             
             if abs(amount - settings.PRICE_TEST_TARIFF) < 1.0:
                 days, minutes = 0, 5
+                total_gb = 1
                 tariff_label = "Тест-драйв (5 минут)"
             elif abs(amount - settings.PRICE_90_DAYS) < 1.0:
                 days, minutes = 90, 0
+                total_gb = 500
                 tariff_label = "3 месяца"
             else:
                 days, minutes = 30, 0
+                total_gb = 100
                 tariff_label = "1 месяц"
                 
             logger.info(f"Ручное начисление подписки по кнопке. Пользователь: {user_id}, Дней: {days}, Минуты: {minutes}")
@@ -300,7 +306,7 @@ async def process_check_payment(callback_query: types.CallbackQuery, bot: Bot):
             await db.mark_payment_success(order_id)
             
             # Выдаем/продлеваем доступ в панели 3X-UI и БД
-            sub_link = await helpers.grant_vpn_access(user_id, days=days, minutes=minutes)
+            sub_link = await helpers.grant_vpn_access(user_id, days=days, minutes=minutes, total_gb=total_gb)
             
             # Отправляем сообщение пользователю
             await bot.send_message(

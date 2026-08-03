@@ -15,7 +15,7 @@ from services.x3ui_service import X3UiClient
 
 logger = logging.getLogger("helpers")
 
-async def grant_vpn_access(user_id: int, days: int = 0, hours: int = 0, minutes: int = 0) -> str:
+async def grant_vpn_access(user_id: int, days: int = 0, hours: int = 0, minutes: int = 0, total_gb: int = settings.TOTAL_GB_LIMIT) -> str:
     """Выдача доступа на N дней и M минут."""
     user = await db.get_user(user_id)
     client_uuid = user['client_uuid'] if (user and user['client_uuid']) else str(uuid.uuid4())
@@ -41,7 +41,8 @@ async def grant_vpn_access(user_id: int, days: int = 0, hours: int = 0, minutes:
         client_uuid=client_uuid,
         sub_id=sub_id,
         tg_id=user_id,
-        expiry_time_ms=expiry_ms
+        expiry_time_ms=expiry_ms,
+        total_gb_limit=total_gb
     )
     
     if not success:
@@ -52,7 +53,8 @@ async def grant_vpn_access(user_id: int, days: int = 0, hours: int = 0, minutes:
             sub_id=sub_id,
             tg_id=user_id,
             enable=True,
-            expiry_time_ms=expiry_ms
+            expiry_time_ms=expiry_ms,
+            total_gb_limit=total_gb
         )
         if not activated:
             raise Exception("3X-UI панели отклонила обновление параметров клиента.")
@@ -84,7 +86,8 @@ async def activate_trial_period(user_id: int, bot: Bot) -> tuple[bool, str]:
         client_uuid=client_uuid,
         sub_id=sub_id,
         tg_id=user_id,
-        expiry_time_ms=expiry_ms
+        expiry_time_ms=expiry_ms,
+        total_gb_limit=10
     )
     
     if not success:
@@ -95,7 +98,8 @@ async def activate_trial_period(user_id: int, bot: Bot) -> tuple[bool, str]:
             sub_id=sub_id,
             enable=True,
             tg_id=user_id,
-            expiry_time_ms=expiry_ms
+            expiry_time_ms=expiry_ms,
+            total_gb_limit=10
         )
         if not activated:
             return False, "Панель отклонила активацию тестового периода."
@@ -139,7 +143,8 @@ async def create_temp_user(bot: Bot) -> tuple[bool, str]:
         client_uuid=client_uuid,
         sub_id=sub_id,
         tg_id=fake_user_id,
-        expiry_time_ms=expiry_ms
+        expiry_time_ms=expiry_ms,
+        total_gb_limit=1
     )
     
     if not success:
