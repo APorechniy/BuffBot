@@ -42,7 +42,7 @@ async def create_or_get_user(user_id: int, sub_id: str = ''):
     user = await get_user(user_id)
     if not user:
         async with aiosqlite.connect(DB_NAME) as conn:
-            await conn.execute("INSERT INTO users (user_id) VALUES (?, ?)", (user_id, sub_id))
+            await conn.execute("INSERT INTO users (user_id, sub_id) VALUES (?, ?)", (user_id, sub_id))
             await conn.commit()
         user = await get_user(user_id)
     return user
