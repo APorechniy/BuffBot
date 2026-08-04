@@ -38,11 +38,11 @@ async def get_user(user_id: int):
         async with conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)) as cursor:
             return await cursor.fetchone()
 
-async def create_or_get_user(user_id: int):
+async def create_or_get_user(user_id: int, sub_id: str = ''):
     user = await get_user(user_id)
     if not user:
         async with aiosqlite.connect(DB_NAME) as conn:
-            await conn.execute("INSERT INTO users (user_id) VALUES (?)", (user_id,))
+            await conn.execute("INSERT INTO users (user_id) VALUES (?, ?)", (user_id, sub_id))
             await conn.commit()
         user = await get_user(user_id)
     return user
@@ -130,7 +130,7 @@ async def delete_all_temp_users():
     async with aiosqlite.connect(DB_NAME) as conn:
         conn.row_factory = aiosqlite.Row
         # Сначала выбираем их, чтобы знать UUID для удаления из 3X-UI
-        async with conn.execute("SELECT * FROM users WHERE sub_id LIKE 'temp_%' OR user_id < 0") as cursor:
+        async with conn.execute("SELECT * FROM users WHERE sub_id LIKE 'temp_%'") as cursor:
             temp_users = await cursor.fetchall()
             
         # Удаляем записи из SQLite
