@@ -227,7 +227,7 @@ async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
     tariff_name = tariff["name"]
     total_gb = tariff["total_gb"]
 
-    await callback_query.answer("Формируем заказ...", show_alert=True)
+    await callback_query.answer("Формируем заказ...")
     
     # Проверяем FeatureToggle приема платежей
     if settings.PAYMENT_ENABLED:
