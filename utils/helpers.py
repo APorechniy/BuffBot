@@ -151,7 +151,7 @@ async def create_temp_user(bot: Bot) -> tuple[bool, str]:
         return False, "Панель отклонила активацию демо-пользователя"
             
     # Сохраняем использование триала
-    await db.create_or_get_user(fake_user_id, sub_id)
+    await db.create_or_get_user(fake_user_id, sub_id, expires_at=expiry_dt)
 
     sub_link = f"{settings.XUI_SUB_BASE_URL.rstrip('/')}/buff-subscribe/{sub_id}"
         

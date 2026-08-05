@@ -16,7 +16,7 @@ async def check_subscriptions_job(bot: Bot):
     now_str = now.isoformat()
     xui = X3UiClient()
 
-    temp_users = await db.delete_all_temp_users()
+    temp_users = await db.delete_all_temp_users(now_str=now_str)
 
     if temp_users:
         logger.info(f"Найдено {len(temp_users)} временных профилей для удаления из 3X-UI.")
@@ -104,6 +104,6 @@ async def check_subscriptions_job(bot: Bot):
 
 def start_scheduler(bot: Bot):
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(check_subscriptions_job, 'interval', minutes=360, args=[bot])
+    scheduler.add_job(check_subscriptions_job, 'interval', minutes=5, args=[bot])
     scheduler.start()
     logger.info("Фоновый планировщик задач успешно запущен.")

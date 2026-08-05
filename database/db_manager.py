@@ -38,11 +38,11 @@ async def get_user(user_id: int):
         async with conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)) as cursor:
             return await cursor.fetchone()
 
-async def create_or_get_user(user_id: int, sub_id: str = ''):
+async def create_or_get_user(user_id: int, sub_id: str = '', expires_at: str = ''):
     user = await get_user(user_id)
     if not user:
         async with aiosqlite.connect(DB_NAME) as conn:
-            await conn.execute("INSERT INTO users (user_id, sub_id) VALUES (?, ?)", (user_id, sub_id))
+            await conn.execute("INSERT INTO users (user_id, sub_id, expires_at) VALUES (?, ?, ?)", (user_id, sub_id, expires_at))
             await conn.commit()
         user = await get_user(user_id)
     return user
@@ -125,15 +125,15 @@ async def get_users_expiring_between(start_str: str, end_str: str):
         ) as cursor:
             return await cursor.fetchall()
 
-async def delete_all_temp_users():
+async def delete_all_temp_users(now_str: str):
     """Находит и полностью удаляет всех пользователей с пометкой temp_ (где sub_id начинается на 'temp_')."""
     async with aiosqlite.connect(DB_NAME) as conn:
         conn.row_factory = aiosqlite.Row
         # Сначала выбираем их, чтобы знать UUID для удаления из 3X-UI
-        async with conn.execute("SELECT * FROM users WHERE sub_id LIKE 'temp_%'") as cursor:
+        async with conn.execute("SELECT * FROM users WHERE sub_id LIKE 'temp_%' AND expires_at <= ?", (now_str)) as cursor:
             temp_users = await cursor.fetchall()
             
         # Удаляем записи из SQLite
-        await conn.execute("DELETE FROM users WHERE sub_id LIKE 'temp_%'")
+        await conn.execute("DELETE FROM users WHERE sub_id LIKE 'temp_%' AND expires_at <= ?", (now_str))
         await conn.commit()
         return temp_users
