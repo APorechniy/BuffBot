@@ -158,7 +158,7 @@ async def handle_support_message(message: types.Message, state: FSMContext):
         keyboard = [[InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_menu")]]
         await message.answer(
             "✅ <b>Ваше обращение успешно зарегистрировано!</b>\n\n"
-            "Инженеры поддержки уже изучают вашу проблему. Мы свяжемся с вами в ближайшее время прямо здесь, в чате бота.\n"
+            "Инженеры поддержки уже изучают вашу проблему. Мы свяжемся с вами в ближайшее время.\n"
             "Спасибо!",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
             parse_mode="HTML"

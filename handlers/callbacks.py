@@ -165,19 +165,43 @@ async def process_upgrade_menu(callback_query: types.CallbackQuery):
     """Показывает тарифную сетку для покупки/продления."""
     tariffs = helpers.load_tariffs()
 
-    text_lines = ["💎 **Выберите тарифный план для активации/продления:**\n"]
+    text_lines = [
+        "🚀 **ВЫБОР ТАРИФНОГО ПЛАНА**",
+        "────────────────────────",
+        "Выберите подходящий период подписки. Доступ активируется **мгновенно** после оплаты.\n"
+    ]
     keyboard = []
 
     for tariff_id, tariff in tariffs.items():
-        text_lines.append(f"• {tariff['icon']} **{tariff['name']}** — {tariff['price']} руб.")
+        price = tariff["price"]
+        days = tariff["days"]
+        total_gb = tariff["total_gb"]
+        icon = tariff["icon"]
+        name = tariff["name"]
+
+        daily_price = round(price / days) if days > 0 else price
+
+        tariff_card = (
+            f"{icon} **{name.upper()}**\n"
+            f"├ 💳 **Стоимость:** `{price} ₽` _(~{daily_price} ₽/день)_\n"
+            f"├ 📊 **Трафик:** `{total_gb} ГБ` _(без урезания скорости)_\n"
+            f"├ ⏳ **Срок:** `{days} дней` с момента активации\n"
+            f"└ 📱 **Поддержка устройств:** iOS, Android, Windows, macOS\n"
+        )
+        text_lines.append(tariff_card)
+
         keyboard.append([
             InlineKeyboardButton(
-                text=f"{tariff['icon']} {tariff['name']} — {tariff['price']} р.", 
+                text=f"{icon} Выбрать {name} — {price} ₽", 
                 callback_data=f"buy:{tariff_id}"
             )
         ])
 
-    text_lines.append("\nПосле выбора вы будете перенаправлены на страницу оплаты.")
+    text_lines.append("────────────────────────")
+    text_lines.append(
+        "🔒 *Безопасная оплата через СБП, банковские карты и ЮMoney.*\n"
+        "💬 *Нужна помощь? Обратитесь в поддержку через главное меню.*"
+    )
     keyboard.append([InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")])
 
     await callback_query.message.edit_text(
