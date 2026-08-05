@@ -130,10 +130,10 @@ async def delete_all_temp_users(now_str: str):
     async with aiosqlite.connect(DB_NAME) as conn:
         conn.row_factory = aiosqlite.Row
         # Сначала выбираем их, чтобы знать UUID для удаления из 3X-UI
-        async with conn.execute("SELECT * FROM users WHERE sub_id LIKE 'temp_%' AND expires_at <= ?", (now_str)) as cursor:
+        async with conn.execute("SELECT * FROM users WHERE sub_id LIKE 'temp_%' AND expires_at <= ?", (now_str,)) as cursor:
             temp_users = await cursor.fetchall()
             
         # Удаляем записи из SQLite
-        await conn.execute("DELETE FROM users WHERE sub_id LIKE 'temp_%' AND expires_at <= ?", (now_str))
+        await conn.execute("DELETE FROM users WHERE sub_id LIKE 'temp_%' AND expires_at <= ?", (now_str,))
         await conn.commit()
         return temp_users
