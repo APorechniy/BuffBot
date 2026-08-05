@@ -163,47 +163,47 @@ async def process_show_docs(callback_query: types.CallbackQuery):
 
 async def process_upgrade_menu(callback_query: types.CallbackQuery):
     """Показывает тарифную сетку для покупки/продления."""
-    text = (
-        "💎 **Выберите тарифный план для активации/продления:**\n\n"
-        f"• ⚡ **Тест-драйв (5 минут)** — {settings.PRICE_TEST_TARIFF} руб.\n"
-        f"• **1 месяц (30 дней)** — {settings.PRICE_30_DAYS} руб.\n"
-        f"• **3 месяца (90 дней)** — {settings.PRICE_90_DAYS} руб.\n\n"
-        "После выбора вы будете перенаправлены на страницу оплаты."
+    tariffs = helpers.load_tariffs()
+
+    text_lines = ["💎 **Выберите тарифный план для активации/продления:**\n"]
+    keyboard = []
+
+    for tariff_id, tariff in tariffs.items():
+        text_lines.append(f"• {tariff['icon']} **{tariff['name']}** — {tariff['price']} руб.")
+        keyboard.append([
+            InlineKeyboardButton(
+                text=f"{tariff['icon']} {tariff['name']} — {tariff['price']} р.", 
+                callback_data=f"buy:{tariff_id}"
+            )
+        ])
+
+    text_lines.append("\nПосле выбора вы будете перенаправлены на страницу оплаты.")
+    keyboard.append([InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")])
+
+    await callback_query.message.edit_text(
+        "\n".join(text_lines), 
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), 
+        parse_mode="Markdown"
     )
-    keyboard = [
-        [InlineKeyboardButton(text=f"⚡ Тест-драйв (5 мин) — {settings.PRICE_TEST_TARIFF} р.", callback_data="buy:5m")],
-        [
-            InlineKeyboardButton(text=f"💎 1 месяц — {settings.PRICE_30_DAYS} р.", callback_data="buy:30"),
-            InlineKeyboardButton(text=f"👑 3 месяца — {settings.PRICE_90_DAYS} р.", callback_data="buy:90")
-        ],
-        [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")]
-    ]
-    await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), parse_mode="Markdown")
 
 async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
     user_id = callback_query.from_user.id
     tariff_type = callback_query.data.split(":")[1]
 
-    if tariff_type == "5m":
-        days = 0
-        minutes = 5
-        amount = settings.PRICE_TEST_TARIFF
-        tariff_name = "Тест-драйв (5 минут)"
-        total_gb = 1
-    elif tariff_type == "30":
-        days = 30
-        minutes = 0
-        amount = settings.PRICE_30_DAYS
-        tariff_name = "1 месяц (30 дней)"
-        total_gb = 100
-    elif tariff_type == "90":
-        days = 90
-        minutes = 0
-        amount = settings.PRICE_90_DAYS
-        tariff_name = "3 месяца (90 дней)"
-        total_gb = 500
-    
-    await callback_query.answer("Формируем заказ...")
+    tariffs = helpers.load_tariffs()
+    tariff = tariffs.get(tariff_type)
+
+    if not tariff:
+        await callback_query.answer("❌ Выбранный тариф не найден или устарел.", show_alert=True)
+        return
+
+    days = tariff["days"]
+    minutes = tariff["minutes"]
+    amount = tariff["price"]
+    tariff_name = tariff["name"]
+    total_gb = tariff["total_gb"]
+
+    await callback_query.answer("Формируем заказ...", show_alert=True)
     
     # Проверяем FeatureToggle приема платежей
     if settings.PAYMENT_ENABLED:
@@ -286,19 +286,19 @@ async def process_check_payment(callback_query: types.CallbackQuery, bot: Bot):
         if status == "PAID":
             # Активируем подписку (Логика полностью совпадает с вебхуком)
             amount = payment['amount']
+            tariffs = helpers.load_tariffs()
+
+            tariff_id = payment.get('tariff_id')
+            tariff = tariffs.get(tariff_id) if tariff_id else next((t for t in tariffs.values() if abs(t['price'] - amount) < 1.0), None)
             
-            if abs(amount - settings.PRICE_TEST_TARIFF) < 1.0:
-                days, minutes = 0, 5
-                total_gb = 1
-                tariff_label = "Тест-драйв (5 минут)"
-            elif abs(amount - settings.PRICE_90_DAYS) < 1.0:
-                days, minutes = 90, 0
-                total_gb = 500
-                tariff_label = "3 месяца"
+            if tariff:
+                days = tariff.get("days", 0)
+                minutes = tariff.get("minutes", 0)
+                total_gb = tariff.get("total_gb", 0)
+                tariff_label = tariff.get("name")
             else:
-                days, minutes = 30, 0
-                total_gb = 100
-                tariff_label = "1 месяц"
+                # Фолбэк на случай, если тариф был удален из JSON
+                days, minutes, total_gb, tariff_label = 30, 0, 100, "Стандартный"
                 
             logger.info(f"Ручное начисление подписки по кнопке. Пользователь: {user_id}, Дней: {days}, Минуты: {minutes}")
             

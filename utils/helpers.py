@@ -6,6 +6,7 @@ import hmac
 import random
 import secrets
 import uuid
+import json
 from datetime import datetime, timedelta
 from aiogram import Bot
 
@@ -14,6 +15,11 @@ import database.db_manager as db
 from services.x3ui_service import X3UiClient
 
 logger = logging.getLogger("helpers")
+
+def load_tariffs(filepath: str = "../tariffs.json") -> dict:
+    """Загружает тарифы из JSON файла в runtime."""
+    with open(filepath, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 async def grant_vpn_access(user_id: int, days: int = 0, hours: int = 0, minutes: int = 0, total_gb: int = settings.TOTAL_GB_LIMIT) -> str:
     """Выдача доступа на N дней и M минут."""
