@@ -110,18 +110,12 @@ class X3UiClient:
             logger.exception(f"Критическая ошибка при обновлении статуса клиента: {e}")
             return False
 
-    async def delete_client(self, inbound_id: int, client_uuid: str) -> bool:
+    async def delete_client(self, client_email: str) -> bool:
         """
         Полностью и безвозвратно удаляет клиента из входящего подключения панели 3X-UI.
         """
         # Стандартный эндпоинт удаления клиента в API 3X-UI
-        url = f"{self.base_url}/panel/api/inbounds/delClient/{client_uuid}"
-        
-        # Передаем ID входящего подключения и UUID удаляемого клиента
-        payload = {
-            "id": inbound_id,
-            "client": client_uuid
-        }
+        url = f"{self.base_url}/panel/api/clients/del/{client_email}"
 
         headers = {
             'Authorization': f'Bearer {self.api_token}',
@@ -131,7 +125,7 @@ class X3UiClient:
         connector = aiohttp.TCPConnector(ssl=False)
         try:
             async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
-                async with session.post(url, json=payload) as r:
+                async with session.post(url, json={}) as r:
                     response_text = await r.text()
                     
                     if r.status == 200:

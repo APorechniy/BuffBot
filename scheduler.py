@@ -23,10 +23,11 @@ async def check_subscriptions_job(bot: Bot):
         for user in temp_users:
             client_uuid = user["client_uuid"]
             user_id = user["user_id"]
+            client_email = user["sub_id"]
             logger.info(f"Стирание временного клиента {user_id} (UUID: {client_uuid}) из 3X-UI...")
             
             # Стираем из ядра Xray
-            await xui.delete_client(inbound_id=settings.XUI_INBOUND_ID, client_uuid=client_uuid)
+            await xui.delete_client(client_email=client_email)
             
         logger.info("Очистка временных пользователей успешно завершена.")
     
