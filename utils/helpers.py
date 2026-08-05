@@ -9,6 +9,7 @@ import uuid
 import json
 from datetime import datetime, timedelta
 from aiogram import Bot
+from pathlib import Path
 
 from config import settings
 import database.db_manager as db
@@ -16,7 +17,10 @@ from services.x3ui_service import X3UiClient
 
 logger = logging.getLogger("helpers")
 
-def load_tariffs(filepath: str = "../tariffs.json") -> dict:
+BASE_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_TARIFFS_PATH = BASE_DIR / "tariffs.json"
+
+def load_tariffs(filepath: str = DEFAULT_TARIFFS_PATH) -> dict:
     """Загружает тарифы из JSON файла в runtime."""
     with open(filepath, "r", encoding="utf-8") as f:
         return json.load(f)
