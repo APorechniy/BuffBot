@@ -232,8 +232,16 @@ async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
     # Проверяем FeatureToggle приема платежей
     if settings.PAYMENT_ENABLED:
         order_id = str(uuid.uuid4()) # Генерируем уникальный номер заказа в нашей системе
+
+        admin_message = (
+            "🎫 <b>Новый заказ!</b>\n\n"
+            f"🆔 <b>ID:</b> <code>{user_id}</code>\n"
+            f"💬 <b>Тариф:</b>\n{tariff_name}"
+            f"<b>OrderID:</b> <code>{order_id}</code>"
+        )
+
         logger.info(f"Регистрация покупки тарифа: user_id={user_id}, days={days}, amount={amount}, order_id={order_id}")
-        
+        await bot.send_message(settings.SUPPORT_CHAT_ID, admin_message, parse_mode="HTML")
         # ОБЯЗАТЕЛЬНО: Сначала пишем лог платежа в БД со статусом по умолчанию 'pending'
         await db.save_payment(order_id, user_id, amount)
         
