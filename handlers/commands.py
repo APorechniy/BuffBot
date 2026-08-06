@@ -66,7 +66,7 @@ TERMS_OF_SERVICE_TEXT = (
 # ==========================================
 async def cmd_start(message: types.Message):
     user_id = message.from_user.id
-    user = await db.create_or_get_user(user_id)
+    user = await db.create_or_get_user(user_id, sub_id=user_id)
     
     status = user['status']
     expires_at = user['expires_at']
