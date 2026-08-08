@@ -19,11 +19,14 @@ class X3UiClient:
         self.base_url = settings.XUI_URL.rstrip('/')
         self.api_token = settings.XUI_TOKEN
 
-    async def add_client(self, inbound_id: int, email: str, client_uuid: str, sub_id: str, tg_id: int, expiry_time_ms: int = 0, total_gb_limit: int = settings.TOTAL_GB_LIMIT) -> bool:
+    async def add_client(self, inbound_id: list[int] | int, email: str, client_uuid: str, sub_id: str, tg_id: int, expiry_time_ms: int = 0, total_gb_limit: int = settings.TOTAL_GB_LIMIT) -> bool:
         logger.info(f"Запрос на добавление клиента: email={email}, uuid={client_uuid}, sub_id={sub_id}")
 
         url = f"{self.base_url}/panel/api/clients/add"
         total_bytes = total_gb_limit * 1024 * 1024 * 1024 if total_gb_limit > 0 else 0
+
+        if isinstance(inbound_id, int):
+            inbound_id = [inbound_id]
         
         payload = {
             "client": {
@@ -38,7 +41,7 @@ class X3UiClient:
                 "subId": sub_id,
                 "flow": "xtls-rprx-vision"
             },
-            "inboundIds": [inbound_id]
+            "inboundIds": inbound_id
         }
 
         headers = {
@@ -67,7 +70,7 @@ class X3UiClient:
             logger.exception(f"Критическая ошибка при добавлении клиента: {e}")
             return False
 
-    async def update_client_status(self, inbound_id: int, client_uuid: str, email: str, sub_id: str, enable: bool, tg_id: int, expiry_time_ms: int = 0, total_gb_limit: int = settings.TOTAL_GB_LIMIT) -> bool:
+    async def update_client_status(self, inbound_id: list[int] | int, client_uuid: str, email: str, sub_id: str, enable: bool, tg_id: int, expiry_time_ms: int = 0, total_gb_limit: int = settings.TOTAL_GB_LIMIT) -> bool:
         url = f"{self.base_url}/panel/api/clients/update/{email}"
         total_bytes = total_gb_limit * 1024 * 1024 * 1024 if total_gb_limit > 0 else 0
 

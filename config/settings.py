@@ -27,7 +27,11 @@ PAYMENT_WEBHOOK_URL = os.getenv("PAYMENT_WEBHOOK_URL", "")
 # --- НАСТРОЙКИ 3X-UI ---
 XUI_URL = os.getenv("XUI_URL", "http://127.0.0.1:2053")
 XUI_TOKEN = os.getenv("XUI_TOKEN", "1234")
-XUI_INBOUND_ID = int(os.getenv("XUI_INBOUND_ID", 1))
+
+raw_inbound_ids = os.getenv("XUI_INBOUND_IDS", "1")
+XUI_INBOUND_IDS = [
+    int(x.strip()) for x in raw_inbound_ids.split(",") if x.strip()
+]
 XUI_SUB_BASE_URL = os.getenv("XUI_SUB_BASE_URL", "http://127.0.0.1:2053")
 
 # Лимиты для клиентов

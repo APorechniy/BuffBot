@@ -49,7 +49,7 @@ async def check_subscriptions_job(bot: Bot):
             
             # Замораживаем доступ в 3X-UI (это автоматически применится на всех рабочих нодах)
             success = await xui.update_client_status(
-                inbound_id=settings.XUI_INBOUND_ID,
+                inbound_id=settings.XUI_INBOUND_IDS,
                 client_uuid=client_uuid,
                 email=f"tg_{user_id}",
                 sub_id=sub_id,

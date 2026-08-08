@@ -46,7 +46,7 @@ async def grant_vpn_access(user_id: int, days: int = 0, hours: int = 0, minutes:
     xui = X3UiClient()
         
     success = await xui.add_client(
-        inbound_id=settings.XUI_INBOUND_ID,
+        inbound_id=settings.XUI_INBOUND_IDS,
         email=client_email,
         client_uuid=client_uuid,
         sub_id=sub_id,
@@ -57,7 +57,7 @@ async def grant_vpn_access(user_id: int, days: int = 0, hours: int = 0, minutes:
     
     if not success:
         activated = await xui.update_client_status(
-            inbound_id=settings.XUI_INBOUND_ID,
+            inbound_id=settings.XUI_INBOUND_IDS,
             client_uuid=client_uuid,
             email=client_email,
             sub_id=sub_id,
@@ -91,7 +91,7 @@ async def activate_trial_period(user_id: int, bot: Bot) -> tuple[bool, str]:
     xui = X3UiClient()
         
     success = await xui.add_client(
-        inbound_id=settings.XUI_INBOUND_ID,
+        inbound_id=settings.XUI_INBOUND_IDS,
         email=client_email,
         client_uuid=client_uuid,
         sub_id=sub_id,
@@ -102,7 +102,7 @@ async def activate_trial_period(user_id: int, bot: Bot) -> tuple[bool, str]:
     
     if not success:
         activated = await xui.update_client_status(
-            inbound_id=settings.XUI_INBOUND_ID,
+            inbound_id=settings.XUI_INBOUND_IDS,
             client_uuid=client_uuid,
             email=client_email,
             sub_id=sub_id,
@@ -148,7 +148,7 @@ async def create_temp_user(bot: Bot) -> tuple[bool, str]:
     xui = X3UiClient()
     
     success = await xui.add_client(
-        inbound_id=settings.XUI_INBOUND_ID,
+        inbound_id=settings.XUI_INBOUND_IDS,
         email=client_email,
         client_uuid=client_uuid,
         sub_id=sub_id,
