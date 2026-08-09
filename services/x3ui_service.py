@@ -19,11 +19,14 @@ class X3UiClient:
         self.base_url = settings.XUI_URL.rstrip('/')
         self.api_token = settings.XUI_TOKEN
 
-    async def add_client(self, inbound_id: int, email: str, client_uuid: str, sub_id: str, tg_id: int, expiry_time_ms: int = 0) -> bool:
+    async def add_client(self, inbound_id: list[int] | int, email: str, client_uuid: str, sub_id: str, tg_id: int, expiry_time_ms: int = 0, total_gb_limit: int = settings.TOTAL_GB_LIMIT) -> bool:
         logger.info(f"Запрос на добавление клиента: email={email}, uuid={client_uuid}, sub_id={sub_id}")
 
         url = f"{self.base_url}/panel/api/clients/add"
-        total_bytes = settings.TOTAL_GB_LIMIT * 1024 * 1024 * 1024 if settings.TOTAL_GB_LIMIT > 0 else 0
+        total_bytes = total_gb_limit * 1024 * 1024 * 1024 if total_gb_limit > 0 else 0
+
+        if isinstance(inbound_id, int):
+            inbound_id = [inbound_id]
         
         payload = {
             "client": {
@@ -38,7 +41,7 @@ class X3UiClient:
                 "subId": sub_id,
                 "flow": "xtls-rprx-vision"
             },
-            "inboundIds": [inbound_id]
+            "inboundIds": inbound_id
         }
 
         headers = {
@@ -46,30 +49,20 @@ class X3UiClient:
             'Content-Type': 'application/json'
         }
 
-        logger.info(f"Отправка запроса на добавление клиента. URL: {url}")
-        logger.debug(f"Тело запроса (payload): {json.dumps(payload, ensure_ascii=False)}")
-
         connector = aiohttp.TCPConnector(ssl=False)
         try:
             async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
                 async with session.post(url, json=payload) as r:
-                    logger.info(f"Ответ добавления клиента: HTTP статус {r.status}")
                     response_text = await r.text()
-                    logger.debug(f"Сырой ответ добавления клиента: {response_text}")
                     
                     if r.status == 200:
                         try:
                             res = json.loads(response_text)
                             success = res.get("success", False)
-                            msg = res.get("msg", "Нет сообщения")
-                            logger.info(f"Результат добавления в API: success={success}, msg='{msg}'")
                             return success
                         except Exception as parse_err:
                             logger.error(f"Не удалось распарсить JSON-ответ от панели: {parse_err}")
                             return False
-                    
-                    if r.status in (401, 403, 302):
-                        logger.warning(f"Ошибка сессии (HTTP {r.status}). Попытка повторной авторизации...")
                     
                     logger.error(f"Не удалось добавить клиента. HTTP статус: {r.status}")
                     return False
@@ -77,11 +70,9 @@ class X3UiClient:
             logger.exception(f"Критическая ошибка при добавлении клиента: {e}")
             return False
 
-    async def update_client_status(self, inbound_id: int, client_uuid: str, email: str, sub_id: str, enable: bool, tg_id: int, expiry_time_ms: int = 0) -> bool:
-        logger.info(f"Запрос на изменение статуса клиента: email={email}, enable={enable}")
-
+    async def update_client_status(self, inbound_id: list[int] | int, client_uuid: str, email: str, sub_id: str, enable: bool, tg_id: int, expiry_time_ms: int = 0, total_gb_limit: int = settings.TOTAL_GB_LIMIT) -> bool:
         url = f"{self.base_url}/panel/api/clients/update/{email}"
-        total_bytes = settings.TOTAL_GB_LIMIT * 1024 * 1024 * 1024 if settings.TOTAL_GB_LIMIT > 0 else 0
+        total_bytes = total_gb_limit * 1024 * 1024 * 1024 if total_gb_limit > 0 else 0
 
         payload = {
             "id": client_uuid,
@@ -101,33 +92,57 @@ class X3UiClient:
             'Content-Type': 'application/json'
         }
 
-        logger.info(f"Отправка запроса на обновление статуса клиента. URL: {url}")
-        logger.debug(f"Тело запроса (payload): {json.dumps(payload, ensure_ascii=False)}")
-
         connector = aiohttp.TCPConnector(ssl=False)
         try:
             async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
                 async with session.post(url, json=payload) as r:
-                    logger.info(f"Ответ обновления статуса: HTTP статус {r.status}")
                     response_text = await r.text()
-                    logger.debug(f"Сырой ответ обновления статуса: {response_text}")
+                    
+                    if r.status == 200:
+                        try:
+                            res = json.loads(response_text)
+                            success = res.get("success", False)
+                            return success
+                        except Exception as parse_err:
+                            logger.error(f"Не удалось распарсить JSON-ответ при обновлении статуса: {parse_err}")
+                            return False
+                    
+                    logger.error(f"Не удалось обновить статус клиента. HTTP статус: {r.status}")
+                    return False
+        except Exception as e:
+            logger.exception(f"Критическая ошибка при обновлении статуса клиента: {e}")
+            return False
+
+    async def delete_client(self, client_email: str) -> bool:
+        """
+        Полностью и безвозвратно удаляет клиента из входящего подключения панели 3X-UI.
+        """
+        # Стандартный эндпоинт удаления клиента в API 3X-UI
+        url = f"{self.base_url}/panel/api/clients/del/{client_email}"
+
+        headers = {
+            'Authorization': f'Bearer {self.api_token}',
+            'Content-Type': 'application/json'
+        }
+
+        connector = aiohttp.TCPConnector(ssl=False)
+        try:
+            async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
+                async with session.post(url, json={}) as r:
+                    response_text = await r.text()
                     
                     if r.status == 200:
                         try:
                             res = json.loads(response_text)
                             success = res.get("success", False)
                             msg = res.get("msg", "Нет сообщения")
-                            logger.info(f"Результат обновления в API: success={success}, msg='{msg}'")
                             return success
                         except Exception as parse_err:
-                            logger.error(f"Не удалось распарсить JSON-ответ при обновлении статуса: {parse_err}")
+                            logger.error(f"Не удалось распарсить ответ API при удалении: {parse_err}")
                             return False
                     
-                    if r.status in (401, 403, 302):
-                        logger.warning(f"Ошибка сессии (HTTP {r.status}). Попытка повторной авторизации...")
-                    
-                    logger.error(f"Не удалось обновить статус клиента. HTTP статус: {r.status}")
+                    logger.error(f"Не удалось удалить клиента. HTTP статус: {r.status}")
                     return False
         except Exception as e:
-            logger.exception(f"Критическая ошибка при обновлении статуса клиента: {e}")
+            logger.exception(f"Критическая ошибка при удалении клиента: {e}")
             return False

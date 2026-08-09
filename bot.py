@@ -7,7 +7,7 @@ import html
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 
 # Принудительно добавляем текущую директорию в PYTHONPATH для корректных импортов в Docker
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -18,6 +18,7 @@ import scheduler
 import handlers.commands as commands
 import handlers.callbacks as callbacks
 import utils.helpers as helpers
+from services.payment_service import ActivePaymentGateway
 
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
@@ -31,6 +32,85 @@ logger = logging.getLogger("main")
 
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
+
+async def handle_payment_webhook(request):
+    """
+    Принимает входящий вебхук об успешной оплате счета от платежного шлюза.
+    """
+    logger.info("Получен входящий вебхук от платежной системы.")
+    
+    headers = dict(request.headers)
+    body_bytes = await request.read()
+    
+    gateway = ActivePaymentGateway()
+    
+    # 1. Валидируем подпись вебхука
+    if not gateway.verify_webhook_signature(body_bytes, headers):
+        logger.warning("Запрос вебхука отклонен: неверная подпись сигнатуры.")
+        return web.Response(text="Forbidden (Invalid Signature)", status=403)
+        
+    try:
+        # 2. Извлекаем данные
+        payload = gateway.parse_webhook(body_bytes, {})
+        logger.info(f"Вебхук успешно верифицирован. Номер заказа: {payload.order_id}, Статус: {payload.status}")
+        
+        if payload.status == "success":
+            # Ищем платеж в нашей БД
+            payment = await db.get_payment(payload.order_id)
+            if not payment:
+                logger.error(f"Платеж с заказом {payload.order_id} отсутствует в нашей БД!")
+                return web.Response(text="Order not found", status=404)
+                
+            # Проверяем, что платеж еще не был зачислен ранее (защита от двойного начисления)
+            if payment['status'] == 'pending':
+                    user_id = payment['user_id']
+                    amount = payment['amount']
+                    
+                    # Распознаем тарифный план по сумме оплаты
+                    if abs(amount - settings.PRICE_TEST_TARIFF) < 1.0:
+                        days, minutes = 0, 5
+                        tariff_label = "Тест-драйв (5 минут)"
+                    elif abs(amount - settings.PRICE_90_DAYS) < 1.0:
+                        days, minutes = 90, 0
+                        tariff_label = "3 месяца"
+                    else:
+                        days, minutes = 30, 0
+                        tariff_label = "1 месяц"
+                        
+                    logger.info(f"Начисление подписки. Пользователь: {user_id}, Дни: {days}, Минуты: {minutes}")
+                    
+                    # Закрываем платеж
+                    await db.mark_payment_success(payload.order_id)
+                    
+                    # Выдаем доступ на указанные дни и минуты
+                    sub_link = await helpers.grant_vpn_access(user_id, days=days, minutes=minutes)
+                    
+                    # Оповещаем пользователя в Telegram
+                    try:
+                        await bot.send_message(
+                            user_id,
+                            f"🎉 **Оплата зачислена!**\n\n"
+                            f"📅 Активирован тариф **'{tariff_label}'**.\n"
+                            f"🔗 Ссылка на подписку:\n`{sub_link}`",
+                            parse_mode="Markdown"
+                        )
+                    except Exception as e:
+                        logger.warning(f"Не удалось отправить уведомление: {e}")
+                    
+        # Платежка ожидает получить статус 200 OK в ответ на вебхук
+        return web.Response(text="OK", status=200)
+        
+    except Exception as e:
+        logger.exception(f"Исключение при обработке вебхука платежа: {e}")
+        return web.Response(text="Internal Server Error", status=500)
+
+async def set_bot_commands(bot: Bot):
+    commands = [
+        BotCommand(command="start", description="Главное меню"),
+        BotCommand(command="terms", description="Пользовательское соглашение"),
+        BotCommand(command="privacy", description="Политика конфиденциальности"),
+    ]
+    await bot.set_my_commands(commands)
 
 async def back_to_menu(callback_query: types.CallbackQuery):
     await callback_query.answer()
@@ -78,7 +158,7 @@ async def handle_support_message(message: types.Message, state: FSMContext):
         keyboard = [[InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_menu")]]
         await message.answer(
             "✅ <b>Ваше обращение успешно зарегистрировано!</b>\n\n"
-            "Инженеры поддержки уже изучают вашу проблему. Мы свяжемся с вами в ближайшее время прямо здесь, в чате бота.\n"
+            "Инженеры поддержки уже изучают вашу проблему. Мы свяжемся с вами в ближайшее время.\n"
             "Спасибо!",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
             parse_mode="HTML"
@@ -114,30 +194,35 @@ async def process_start_support(callback_query: types.CallbackQuery, state: FSMC
 
 # --- Регистрация хэндлеров Telegram ---
 dp.message.register(commands.cmd_start, Command("start"))
+dp.message.register(commands.cmd_privacy, Command("privacy"))
+dp.message.register(commands.cmd_terms, Command("terms"))
 dp.callback_query.register(callbacks.process_upgrade_menu, lambda c: c.data == "upgrade_menu")
 dp.callback_query.register(callbacks.process_buy_tariff, lambda c: c.data.startswith("buy:"))
+dp.callback_query.register(callbacks.process_check_payment, lambda c: c.data.startswith("check_pay:"))
 dp.callback_query.register(callbacks.process_activate_trial_callback, lambda c: c.data == "activate_trial")
 dp.callback_query.register(callbacks.process_show_docs, lambda c: c.data == "show_docs")
-dp.callback_query.register(callbacks.process_show_docs, lambda c: c.data == "show_faq")
+dp.callback_query.register(callbacks.process_show_user_agreement, lambda c: c.data == "show_user_agreement")
+dp.callback_query.register(callbacks.process_show_terms, lambda c: c.data == "show_terms")
+dp.callback_query.register(callbacks.process_show_inst, lambda c: c.data.startswith("inst_"))
 dp.callback_query.register(process_start_support, lambda c: c.data == "start_support_ticket")
 dp.callback_query.register(back_to_menu, lambda c: c.data == "back_to_menu") # Назад в меню
-
 
 # --- API эндпоинты для интеграции с вашим сайтом ---
 async def handle_website_trial_api(request):
     """
     Эндпоинт для выдачи триала прямо с сайта.
-    Принимает POST JSON: { "tg_id": 123456789 }
+    Выдается на 30 минут, после чего умирает.
+    Цель - заманить клиента в бота
     """
     try:
-        data = await request.json()
-        tg_id = data.get("tg_id")
-        if not tg_id:
-            return web.json_response({"success": False, "error": "Не указан tg_id"}, status=400)
-            
-        success, result = await helpers.activate_trial_period(int(tg_id), bot)
+        client_secret = request.headers.get("X-Internal-Secret", "")
+
+        if not helpers.verify_internal_token(client_secret=client_secret):
+            return web.json_response({"success": False, "error": "Доступ запрещен"}, status=403)
+
+        success, result = await helpers.create_temp_user(bot)
         if success:
-            return web.json_response({"success": True, "sub_link": result})
+            return web.json_response({"success": True, "subscription_url": result})
         else:
             return web.json_response({"success": False, "error": result}, status=400)
     except Exception as e:
@@ -148,6 +233,7 @@ async def start_web_server():
     app = web.Application()
     # API для сайта
     app.router.add_post('/api/trial', handle_website_trial_api)
+    app.router.add_post('/webhook/payment', handle_payment_webhook)
     
     runner = web.AppRunner(app)
     await runner.setup()
@@ -159,6 +245,7 @@ async def main():
     await db.init_db()
     await start_web_server()
     scheduler.start_scheduler(bot)
+    set_bot_commands(bot)
     
     logger.info("Запуск Telegram-бота...")
     await dp.start_polling(bot)

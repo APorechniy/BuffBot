@@ -15,6 +15,21 @@ async def check_subscriptions_job(bot: Bot):
     now = datetime.now()
     now_str = now.isoformat()
     xui = X3UiClient()
+
+    temp_users = await db.delete_all_temp_users(now_str=now_str)
+
+    if temp_users:
+        logger.info(f"Найдено {len(temp_users)} временных профилей для удаления из 3X-UI.")
+        for user in temp_users:
+            client_uuid = user["client_uuid"]
+            user_id = user["user_id"]
+            client_email = user["sub_id"]
+            logger.info(f"Стирание временного клиента {user_id} (UUID: {client_uuid}) из 3X-UI...")
+            
+            # Стираем из ядра Xray
+            await xui.delete_client(client_email=client_email)
+            
+        logger.info("Очистка временных пользователей успешно завершена.")
     
     # 1. Заморозка просроченных клиентов
     expired_users = await db.get_expired_users(now_str)
@@ -34,7 +49,7 @@ async def check_subscriptions_job(bot: Bot):
             
             # Замораживаем доступ в 3X-UI (это автоматически применится на всех рабочих нодах)
             success = await xui.update_client_status(
-                inbound_id=settings.XUI_INBOUND_ID,
+                inbound_id=settings.XUI_INBOUND_IDS,
                 client_uuid=client_uuid,
                 email=f"tg_{user_id}",
                 sub_id=sub_id,
@@ -89,7 +104,6 @@ async def check_subscriptions_job(bot: Bot):
 
 def start_scheduler(bot: Bot):
     scheduler = AsyncIOScheduler()
-    # Фоновый аудит запускается ежедневно в 12:00 по серверному времени
-    scheduler.add_job(check_subscriptions_job, 'cron', hour=12, minute=0, args=[bot])
+    scheduler.add_job(check_subscriptions_job, 'interval', minutes=5, args=[bot])
     scheduler.start()
     logger.info("Фоновый планировщик задач успешно запущен.")

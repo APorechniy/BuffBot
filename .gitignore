@@ -1,2 +1,44 @@
-# .env
-.env*
+# --- Локальные данные бота ---
+# Базы данных, сессии, пользовательские файлы
+*.db
+*.sqlite
+*.sqlite3
+*.session
+*.session-journal
+data/
+downloads/
+logs/
+*.log
+
+# --- Python: виртуальное окружение ---
+venv/
+.venv/
+env/
+.env
+.env.*
+ENV/
+env.bak/
+venv.bak/
+
+# --- Python: кэш и компиляция ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.Python
+
+# --- IDE и редакторы ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# MD
+instruction.md

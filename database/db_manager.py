@@ -38,11 +38,11 @@ async def get_user(user_id: int):
         async with conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)) as cursor:
             return await cursor.fetchone()
 
-async def create_or_get_user(user_id: int):
+async def create_or_get_user(user_id: int, sub_id: str = '', expires_at: str = ''):
     user = await get_user(user_id)
     if not user:
         async with aiosqlite.connect(DB_NAME) as conn:
-            await conn.execute("INSERT INTO users (user_id) VALUES (?)", (user_id,))
+            await conn.execute("INSERT INTO users (user_id, sub_id, expires_at) VALUES (?, ?, ?)", (user_id, sub_id, expires_at))
             await conn.commit()
         user = await get_user(user_id)
     return user
@@ -67,7 +67,7 @@ async def mark_payment_success(order_id: str):
         await conn.execute("UPDATE payments SET status = 'success' WHERE order_id = ?", (order_id,))
         await conn.commit()
 
-async def activate_user_subscription(user_id: int, client_uuid: str, sub_id: str, days: int):
+async def activate_user_subscription(user_id: int, client_uuid: str, sub_id: str, days: int = 0, hours: int = 0, minutes: int = 0):
     async with aiosqlite.connect(DB_NAME) as conn:
         user = await get_user(user_id)
         current_expiry = None
@@ -78,7 +78,9 @@ async def activate_user_subscription(user_id: int, client_uuid: str, sub_id: str
                 pass
         
         base_time = current_expiry if (current_expiry and current_expiry > datetime.now()) else datetime.now()
-        new_expiry = (base_time + timedelta(days=days)).isoformat()
+        
+        # Поддерживаем одновременный расчет дней и минут
+        new_expiry = (base_time + timedelta(days=days, hours=hours, minutes=minutes)).isoformat()
         
         await conn.execute(
             """UPDATE users 
@@ -122,3 +124,16 @@ async def get_users_expiring_between(start_str: str, end_str: str):
             (start_str, end_str)
         ) as cursor:
             return await cursor.fetchall()
+
+async def delete_all_temp_users(now_str: str):
+    """Находит и полностью удаляет всех пользователей с пометкой temp_ (где sub_id начинается на 'temp_')."""
+    async with aiosqlite.connect(DB_NAME) as conn:
+        conn.row_factory = aiosqlite.Row
+        # Сначала выбираем их, чтобы знать UUID для удаления из 3X-UI
+        async with conn.execute("SELECT * FROM users WHERE sub_id LIKE 'temp_%' AND expires_at <= ?", (now_str,)) as cursor:
+            temp_users = await cursor.fetchall()
+            
+        # Удаляем записи из SQLite
+        await conn.execute("DELETE FROM users WHERE sub_id LIKE 'temp_%' AND expires_at <= ?", (now_str,))
+        await conn.commit()
+        return temp_users
