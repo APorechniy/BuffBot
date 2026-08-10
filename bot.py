@@ -55,47 +55,9 @@ async def handle_payment_webhook(request):
         logger.info(f"Вебхук успешно верифицирован. Номер заказа: {payload.order_id}, Статус: {payload.status}")
         
         if payload.status == "success":
-            # Ищем платеж в нашей БД
-            payment = await db.get_payment(payload.order_id)
-            if not payment:
-                logger.error(f"Платеж с заказом {payload.order_id} отсутствует в нашей БД!")
+            success = await helpers.process_successful_payment(payload.order_id, bot)
+            if not success:
                 return web.Response(text="Order not found", status=404)
-                
-            # Проверяем, что платеж еще не был зачислен ранее (защита от двойного начисления)
-            if payment['status'] == 'pending':
-                    user_id = payment['user_id']
-                    amount = payment['amount']
-                    
-                    # Распознаем тарифный план по сумме оплаты
-                    if abs(amount - settings.PRICE_TEST_TARIFF) < 1.0:
-                        days, minutes = 0, 5
-                        tariff_label = "Тест-драйв (5 минут)"
-                    elif abs(amount - settings.PRICE_90_DAYS) < 1.0:
-                        days, minutes = 90, 0
-                        tariff_label = "3 месяца"
-                    else:
-                        days, minutes = 30, 0
-                        tariff_label = "1 месяц"
-                        
-                    logger.info(f"Начисление подписки. Пользователь: {user_id}, Дни: {days}, Минуты: {minutes}")
-                    
-                    # Закрываем платеж
-                    await db.mark_payment_success(payload.order_id)
-                    
-                    # Выдаем доступ на указанные дни и минуты
-                    sub_link = await helpers.grant_vpn_access(user_id, days=days, minutes=minutes)
-                    
-                    # Оповещаем пользователя в Telegram
-                    try:
-                        await bot.send_message(
-                            user_id,
-                            f"🎉 **Оплата зачислена!**\n\n"
-                            f"📅 Активирован тариф **'{tariff_label}'**.\n"
-                            f"🔗 Ссылка на подписку:\n`{sub_link}`",
-                            parse_mode="Markdown"
-                        )
-                    except Exception as e:
-                        logger.warning(f"Не удалось отправить уведомление: {e}")
                     
         # Платежка ожидает получить статус 200 OK в ответ на вебхук
         return web.Response(text="OK", status=200)

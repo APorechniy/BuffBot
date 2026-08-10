@@ -26,6 +26,7 @@ async def init_db():
                 order_id TEXT PRIMARY KEY,
                 user_id INTEGER,
                 amount REAL,
+                tariff_id TEXT,
                 status TEXT DEFAULT 'pending',
                 created_at TEXT
             )
@@ -47,12 +48,12 @@ async def create_or_get_user(user_id: int, sub_id: str = '', expires_at: str = '
         user = await get_user(user_id)
     return user
 
-async def save_payment(order_id: str, user_id: int, amount: float):
+async def save_payment(order_id: str, user_id: int, amount: float, tariff_id: str = None):
     async with aiosqlite.connect(DB_NAME) as conn:
         now_str = datetime.now().isoformat()
         await conn.execute(
-            "INSERT INTO payments (order_id, user_id, amount, created_at) VALUES (?, ?, ?, ?)",
-            (order_id, user_id, amount, now_str)
+            "INSERT INTO payments (order_id, user_id, amount, tariff_id, created_at) VALUES (?, ?, ?, ?, ?)",
+            (order_id, user_id, amount, tariff_id, now_str)
         )
         await conn.commit()
 

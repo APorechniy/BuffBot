@@ -9,55 +9,10 @@ import database.db_manager as db
 import utils.helpers as helpers
 from aiogram.fsm.context import FSMContext
 from services.payment_service import ActivePaymentGateway
+from constants.texts import PRIVACY_POLICY_TEXT, TERMS_OF_SERVICE_TEXT, DOCUMENTATION
+from constants.instructions import IOS_INSTRUCTION, ANDROID_INSTRUCTION, WINDOWS_INSTRUCTION
 
 logger = logging.getLogger("callbacks")
-
-# ==========================================
-# ТЕКСТЫ ДОКУМЕНТОВ
-# ==========================================
-PRIVACY_POLICY_TEXT = (
-    "🔒 **Политика конфиденциальности сервиса Buff VPN**\n\n"
-    "Настоящая Политика описывает, как сервис **Buff VPN** обрабатывает информацию пользователей.\n\n"
-    "**1. Сбор и хранение данных (No-Logs Policy)**\n"
-    "Мы придерживаемся политики строгой конфиденциальности и минимизации данных:\n"
-    "• **Единственные данные, которые мы храним:** ваш уникальный числовой идентификатор **Telegram User ID**.\n"
-    "• Он используется исключительно для привязки статуса подписки к вашему аккаунту и сгенерированной ссылки.\n\n"
-
-    "**2. Что мы НЕ собираем и НЕ храним:**\n"
-    "❌ Мы **не храним** логи вашей сетевой активности (посещенные сайты, время, трафик).\n"
-    "❌ Мы **не знаем** ваш реальный IP-адрес, имя, фамилию или номер телефона.\n"
-    "❌ Мы **не храним** платежные данные. Все транзакции проходят на стороне аккредитованных платежных шлюзов.\n\n"
-
-    "**3. Защита данных**\n"
-    "Ваш Telegram ID не передается третьим лицам и используется только внутри бота для проверки наличия активного тарифа.\n\n"
-
-    "**4. Изменения**\n"
-    "Сервис оставляет за собой право обновлять настоящую политику. Актуальная версия всегда доступна по команде /privacy."
-)
-
-TERMS_OF_SERVICE_TEXT = (
-    "📜 **Пользовательское соглашение (Terms of Service)**\n\n"
-    "Используя сервис **Buff VPN**, вы соглашаетесь с нижеследующими условиями:\n\n"
-
-    "**1. Предоставление услуг**\n"
-    "• Сервис предоставляет доступ к приватным узлам связи по подписке.\n"
-    "• Услуги предоставляются по принципу «Как есть» (As Is). Мы гарантируем максимальную доступность серверов, но не несем ответственности за форс-мажоры или блокировки со стороны магистральных провайдеров.\n\n"
-
-    "**2. Правила использования и запреты**\n"
-    "При использовании VPN-сервиса **строго запрещено:**\n"
-    "🚫 Совершение любых действий, нарушающих законодательство.\n"
-    "🚫 Проведение DDoS-атак, сканирование портов, спам-рассылки.\n"
-    "🚫 Распространение вредоносного ПО и фишинг.\n"
-    "⚠️ В случае выявления нарушений доступ к сервису аннулируется без возврата средств.\n\n"
-
-    "**3. Идентификация пользователя**\n"
-    "• Сервис не проводит процедуру KYC (верификацию личности).\n"
-    "• Единственным идентификатором вашего аккаунта является ваш **Telegram ID**.\n\n"
-
-    "**4. Оплата и возврат**\n"
-    "• Оплата производится за фиксированный период доступа (30/90 дней).\n"
-    "• Возврат средств возможен только в случае, если сервис не предоставлял услугу по техническим причинам на нашей стороне более 48 часов подряд."
-)
 
 async def process_show_inst(callback_query: types.CallbackQuery):
     """Показывает подробную инструкцию по настройке VPN для выбранной ОС."""
@@ -67,17 +22,7 @@ async def process_show_inst(callback_query: types.CallbackQuery):
     keyboard = []
 
     if platform == "ios":
-        text = (
-            "🍏 **Инструкция по настройке для iOS (iPhone / iPad)**\n\n"
-            "📱 **Рекомендуемый клиент:** **V2RAGE** или **NpvTunnel**\n\n"
-            "**Пошаговая настройка (на примере V2RAGE):**\n"
-            "1. Скачайте и установите приложение по кнопке ниже.\n"
-            "2. Скопируйте вашу **ссылку на подписку** (из Личного кабинета бота).\n"
-            "3. Откройте приложение **V2RAGE** и нажмите **`+`** в правом верхнем углу.\n"
-            "4. Нажмите **«Вставить»**, ваша ссылка должна прикрепиться.\n"
-            "5. Выберите появившийся сервер и переключите ползунок для подключения.\n\n"
-            "💡 *При обновлении подписки приложение будет автоматически получать свежие рабочие узлы.*"
-        )
+        text = IOS_INSTRUCTION
         keyboard = [
             [InlineKeyboardButton(text="📥 Скачать V2RAGE (App Store)", url="https://apps.apple.com/ru/app/v2rage/id6761075402")],
             [InlineKeyboardButton(text="🔙 К выбору ОС", callback_data="show_docs")],
@@ -85,18 +30,7 @@ async def process_show_inst(callback_query: types.CallbackQuery):
         ]
 
     elif platform == "android":
-        text = (
-            "🤖 **Инструкция по настройке для Android**\n\n"
-            "📱 **Рекомендуемый клиент:** **v2rayNG** (Бесплатный, стабильный клиент из Google Play)\n\n"
-            "**Пошаговая настройка:**\n"
-            "1. Установите приложение **v2rayNG** из Google Play / RuStore.\n"
-            "2. Скопируйте вашу **ссылку на подписку** (из Личного кабинета бота).\n"
-            "3. Откройте **v2rayNG**, нажмите на меню **`≡`** (слева вверху) ➔ **«Настройки групп подписок»**.\n"
-            "4. Нажмите **`+`** (вверху), введите имя (например `Buff VPN`) и вставьте вашу ссылку в поле **«URL»**.\n"
-            "5. Сохраните (галочка вверху справа) и вернитесь на главный экран.\n"
-            "6. Нажмите **три точки** (справа вверху) ➔ **«Обновить подписку»**.\n"
-            "7. Нажмите на кружок с галочкой внизу справа для подключения."
-        )
+        text = ANDROID_INSTRUCTION
         keyboard = [
             [InlineKeyboardButton(text="📥 Скачать v2rayNG (Google Play)", url="https://play.google.com/store/apps/details?id=com.v2ray.ang")],
             [InlineKeyboardButton(text="🔙 К выбору ОС", callback_data="show_docs")],
@@ -104,18 +38,7 @@ async def process_show_inst(callback_query: types.CallbackQuery):
         ]
 
     elif platform == "windows":
-        text = (
-            "💻 **Инструкция по настройке для Windows**\n\n"
-            "💻 **Рекомендуемый клиент:** **v2rayN** или **NekoBox**\n\n"
-            "**Пошаговая настройка (v2rayN):**\n"
-            "1. Скачайте и распакуйте архив с приложением **v2rayN** (нужен файл `v2rayN-With-Core.zip`).\n"
-            "2. Скопируйте вашу **ссылку на подписку** (из Личного кабинета бота).\n"
-            "3. Запустите `v2rayN.exe`.\n"
-            "4. Нажмите сверху вкладку **«Подписка» (Subscription)** ➔ **«Настройка групп подписок»**.\n"
-            "5. Нажмите **«Добавить»**, введите имя `Buff VPN`, вставьте вашу ссылку в поле **«URL»** и нажмите **«Сохранить»**.\n"
-            "6. Вернитесь в главное окно, откройте **«Подписка»** ➔ **«Обновить подписку»** (или `Ctrl+O`).\n"
-            "7. В нижней панели приложения переключите **«Системный прокси» (System Proxy)** в режим **«Включить» (Set system proxy)**."
-        )
+        text = WINDOWS_INSTRUCTION
         keyboard = [
             [InlineKeyboardButton(text="📥 Скачать v2rayN (GitHub)", url="https://github.com/2dust/v2rayN/releases")],
             [InlineKeyboardButton(text="🔙 К выбору ОС", callback_data="show_docs")],
@@ -132,23 +55,7 @@ async def process_show_inst(callback_query: types.CallbackQuery):
 
 async def process_show_docs(callback_query: types.CallbackQuery):
     """Открывает подробную документацию и развилку выбора ОС."""
-    text = (
-        "📖 **Документация по проекту Buff VPN**\n\n"
-        "**Buff VPN** — это сервис безопасного и шифрованного сетевого подключения, "
-        "предназначенный для обеспечения конфиденциальности передаваемых данных и защиты "
-        "пользователей при работе в незащищённых сетях.\n\n"
-        "🛡 **Ключевые функции сервиса:**\n"
-        "• **Шифрование трафика:** Защита ваших паролей, банковских данных и личной переписки от перехвата при подключении к публичным сетям Wi-Fi (в кафе, отелях, аэропортах).\n"
-        "• **Конфиденциальность:** Защита сетевого соединения от коммерческого трекинга, сбора метрик и аналитики сторонними сервисами.\n"
-        "• **Защищённый туннель:** Использование современных стойких протоколов шифрования, обеспечивающих высокую скорость и стабильность соединения.\n\n"
-        "⚠️ **Юридическая информация и правила использования:**\n"
-        "Сервис Buff VPN создан исключительно для обеспечения безопасности и защиты персональной информации.\n"
-        "• Сервис **не предназначен** и **не используется** для обхода технических ограничений доступа, установленных законодательством.\n"
-        "• Сервис **не предоставляет** возможности для обхода локальных сетевых правил («белых» и «черных» списков адресов) или фильтрации трафика.\n"
-        "• Пользователь обязуется использовать сервис в строгом соответствии с действующим законодательством.\n\n"
-        "📲 **Инструкции по настройке:**\n"
-        "Выберите ваше устройство из списка ниже, чтобы получить пошаговое руководство по настройке клиенского подключения:"
-    )
+    
     keyboard = [
         [InlineKeyboardButton(text="🍏 iOS (iPhone / iPad)", callback_data="inst_ios")],
         [InlineKeyboardButton(text="🤖 Android", callback_data="inst_android")],
@@ -156,7 +63,7 @@ async def process_show_docs(callback_query: types.CallbackQuery):
         [InlineKeyboardButton(text="🔙 Главное меню", callback_data="back_to_menu")]
     ]
     await callback_query.message.edit_text(
-        text, 
+        DOCUMENTATION, 
         reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard), 
         parse_mode="Markdown"
     )
@@ -224,6 +131,7 @@ async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
     days = tariff["days"]
     minutes = tariff["minutes"]
     amount = tariff["price"]
+    tariff_id = tariff["id"]
     tariff_name = tariff["name"]
     total_gb = tariff["total_gb"]
 
@@ -243,7 +151,7 @@ async def process_buy_tariff(callback_query: types.CallbackQuery, bot: Bot):
         logger.info(f"Регистрация покупки тарифа: user_id={user_id}, days={days}, amount={amount}, order_id={order_id}")
         await bot.send_message(settings.SUPPORT_CHAT_ID, admin_message, parse_mode="HTML")
         # ОБЯЗАТЕЛЬНО: Сначала пишем лог платежа в БД со статусом по умолчанию 'pending'
-        await db.save_payment(order_id, user_id, amount)
+        await db.save_payment(order_id, user_id, amount, tariff_id)
         
         try:
             gateway = ActivePaymentGateway()
@@ -298,11 +206,12 @@ async def process_check_payment(callback_query: types.CallbackQuery, bot: Bot):
     order_id = callback_query.data.split(":")[1]
     
     # 1. Извлекаем платеж из локальной БД бота
-    payment = await db.get_payment(order_id)
-    if not payment:
+    payment_row = await db.get_payment(order_id)
+    if not payment_row:
         await callback_query.answer("Заказ не найден в базе данных бота.", show_alert=True)
         return
-        
+
+    payment = dict(payment_row)
     # Защита от повторной ручной активации
     if payment['status'] == 'success':
         await callback_query.answer("Этот счет уже был успешно оплачен и зачислен!", show_alert=True)
@@ -316,39 +225,7 @@ async def process_check_payment(callback_query: types.CallbackQuery, bot: Bot):
         status = await gateway.check_invoice_status(order_id)
         
         if status == "PAID":
-            # Активируем подписку (Логика полностью совпадает с вебхуком)
-            amount = payment['amount']
-            tariffs = helpers.load_tariffs()
-
-            tariff_id = payment.get('tariff_id')
-            tariff = tariffs.get(tariff_id) if tariff_id else next((t for t in tariffs.values() if abs(t['price'] - amount) < 1.0), None)
-            
-            if tariff:
-                days = tariff.get("days", 0)
-                minutes = tariff.get("minutes", 0)
-                total_gb = tariff.get("total_gb", 0)
-                tariff_label = tariff.get("name")
-            else:
-                # Фолбэк на случай, если тариф был удален из JSON
-                days, minutes, total_gb, tariff_label = 30, 0, 100, "Стандартный"
-                
-            logger.info(f"Ручное начисление подписки по кнопке. Пользователь: {user_id}, Дней: {days}, Минуты: {minutes}")
-            
-            # Закрываем платеж в БД как успешный
-            await db.mark_payment_success(order_id)
-            
-            # Выдаем/продлеваем доступ в панели 3X-UI и БД
-            sub_link = await helpers.grant_vpn_access(user_id, days=days, minutes=minutes, total_gb=total_gb)
-            
-            # Отправляем сообщение пользователю
-            await bot.send_message(
-                user_id,
-                f"🎉 **Оплата успешно подтверждена вручную!**\n\n"
-                f"📅 Активирован тариф **'{tariff_label}'**.\n"
-                f"🔗 Ваша ссылка на подписку:\n`{sub_link}`",
-                parse_mode="Markdown"
-            )
-            # Удаляем сообщение со старыми кнопками оплаты
+            await helpers.process_successful_payment(order_id, bot)
             await callback_query.message.delete()
             
         elif status == "NEW":
