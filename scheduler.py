@@ -27,7 +27,10 @@ async def check_subscriptions_job(bot: Bot):
             logger.info(f"Стирание временного клиента {user_id} (UUID: {client_uuid}) из 3X-UI...")
             
             # Стираем из ядра Xray
-            await xui.delete_client(client_email=client_email)
+            try:
+                await xui.delete_client(client_email=client_email)
+            except Exception as e:
+                logger.error(f"[3X-UI] Ошибка при стирании временного пользователя {user_id}: {e}")
             
         logger.info("Очистка временных пользователей успешно завершена.")
     
@@ -45,32 +48,31 @@ async def check_subscriptions_job(bot: Bot):
             logger.info(f"Фоновое отключение пользователя {user_id} (UUID: {client_uuid})")
             
             # Обновляем статус в нашей локальной БД бота
-            await db.update_user_status(user_id, 'expired')
-            
-            # Замораживаем доступ в 3X-UI (это автоматически применится на всех рабочих нодах)
-            success = await xui.update_client_status(
-                inbound_id=settings.XUI_INBOUND_IDS,
-                client_uuid=client_uuid,
-                email=f"tg_{user_id}",
-                sub_id=sub_id,
-                enable=False,
-                tg_id=user_id,
-            )
-            
-            if success:
-                logger.info(f"Пользователь {user_id} успешно отключен в панели 3X-UI.")
-            else:
-                logger.error(f"Панель 3X-UI отклонила отключение пользователя {user_id}.")
-            
-            # Отправляем уведомление пользователю в Telegram
             try:
+                await db.update_user_status(user_id, 'expired')
+                
+                # Замораживаем доступ в 3X-UI (это автоматически применится на всех рабочих нодах)
+                success = await xui.update_client_status(
+                    inbound_id=settings.XUI_INBOUND_IDS,
+                    client_uuid=client_uuid,
+                    email=f"tg_{user_id}",
+                    sub_id=sub_id,
+                    enable=False,
+                    tg_id=user_id,
+                )
+                
+                if success:
+                    logger.info(f"Пользователь {user_id} успешно отключен в панели 3X-UI.")
+                else:
+                    logger.error(f"Панель 3X-UI отклонила отключение пользователя {user_id}.")
+
                 await bot.send_message(
                     user_id, 
                     "⚠️ Срок действия вашей VPN подписки истёк. Доступ к серверам заблокирован.\n"
                     "Вы можете мгновенно продлить её прямо в меню бота."
                 )
             except Exception as e:
-                logger.warning(f"Не удалось отправить уведомление об истечении пользователю {user_id}: {e}")
+                logger.error(f"[LOCAL]: Ошибка при отключении пользователя {user_id}: {e}")
                 
     # 2. Предупреждение за 1 день до отключения
     one_day_later = (now + timedelta(days=1)).isoformat()

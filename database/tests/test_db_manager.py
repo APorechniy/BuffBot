@@ -45,9 +45,10 @@ async def test_payment_lifecycle():
     order_id = "PAY-999"
     user_id = 777
     amount = 150.50
+    tariff_id = "150"
     
     # 1. Сохраняем платеж
-    await save_payment(order_id, user_id, amount)
+    await save_payment(order_id, user_id, amount, tariff_id)
     
     # 2. Достаем платеж и проверяем поля
     payment = await get_payment(order_id)
@@ -55,6 +56,7 @@ async def test_payment_lifecycle():
     assert payment["order_id"] == order_id
     assert payment["amount"] == 150.50
     assert payment["status"] == "pending" # Статус по умолчанию
+    assert payment["tariff_id"] == "150"
     
     # 3. Отмечаем платеж как успешный
     await mark_payment_success(order_id)

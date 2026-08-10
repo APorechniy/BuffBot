@@ -73,6 +73,57 @@ async def grant_vpn_access(user_id: int, days: int = 0, hours: int = 0, minutes:
     await db.activate_user_subscription(user_id, client_uuid, sub_id, days=days, hours=hours, minutes=minutes)
     return f"{settings.XUI_SUB_BASE_URL.rstrip('/')}/buff-subscribe/{sub_id}"
 
+async def process_successful_payment(order_id: str, bot: Bot) -> bool:
+    """Единая функция зачисления успешного платежа для вебхуков и ручных проверок."""
+    payment_row = await db.get_payment(order_id)
+    if not payment_row:
+        logger.error(f"Платеж с заказом {order_id} отсутствует в нашей БД!")
+        return False
+
+    payment = dict(payment_row)
+    if payment['status'] == 'success':
+        logger.info(f"Платеж {order_id} уже был ранее обработан.")
+        return True
+
+    user_id = payment['user_id']
+    amount = payment['amount']
+    tariff_id = payment.get('tariff_id')
+
+    tariffs = load_tariffs()
+
+    tariff = None
+    if tariff_id and tariff_id in tariffs:
+        tariff = tariffs[tariff_id]
+    else:
+        # Резервный сопоставитель тарифа по цене
+        tariff = next((t for t in tariffs.values() if abs(t['price'] - amount) < 1.0), None)
+
+    if tariff:
+        days = tariff.get("days", 0)
+        minutes = tariff.get("minutes", 0)
+        total_gb = tariff.get("total_gb", settings.TOTAL_GB_LIMIT)
+        tariff_label = tariff.get("name", "VPN Подписка")
+    else:
+        days, minutes, total_gb, tariff_label = 30, 0, settings.TOTAL_GB_LIMIT, "Стандартный (30 дней)"
+
+    logger.info(f"Начисление подписки за заказ {order_id}. User: {user_id}, Тариф: '{tariff_label}', Дней: {days}")
+
+    await db.mark_payment_success(order_id)
+    sub_link = await grant_vpn_access(user_id, days=days, minutes=minutes, total_gb=total_gb)
+
+    try:
+        await bot.send_message(
+            user_id,
+            f"🎉 **Оплата зачислена!**\n\n"
+            f"📅 Активирован тариф **'{tariff_label}'**.\n"
+            f"🔗 Ссылка на подписку:\n`{sub_link}`",
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.warning(f"Не удалось отправить уведомление пользователю {user_id}: {e}")
+
+    return True
+
 async def activate_trial_period(user_id: int, bot: Bot) -> tuple[bool, str]:
     """Логика активации 1-дневного триала по запросу c бота."""
     user = await db.create_or_get_user(user_id)
